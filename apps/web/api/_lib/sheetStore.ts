@@ -1,5 +1,5 @@
-import { APP_PROPERTY_KEY, APP_PROPERTY_VALUE } from "@todos/sheet-core";
-import type { SheetStore } from "@todos/mcp-server";
+import { APP_PROPERTY_KEY, APP_PROPERTY_VALUE } from "@memoria/sheet-core";
+import type { SheetStore } from "@memoria/mcp-server";
 import { authedJson } from "../../src/api/http.js";
 import {
   appendRow as appendSheetRow,
@@ -61,7 +61,7 @@ export class NoBoardError extends Error {
 
 /**
  * Adapts the caller's own OAuth token into the `SheetStore` contract `registerTools` (from
- * `@todos/mcp-server`) expects. One instance per request: board discovery runs at most once (on
+ * `@memoria/mcp-server`) expects. One instance per request: board discovery runs at most once (on
  * first use) and its result is cached for the rest of that request's tool calls.
  */
 export class RemoteSheetStore implements SheetStore {

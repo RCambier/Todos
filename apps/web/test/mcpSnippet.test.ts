@@ -18,7 +18,7 @@ describe("buildConnectorUrl", () => {
 describe("buildClaudeCodeCliSnippet", () => {
   it("registers the connector as a remote HTTP MCP server at user scope", () => {
     expect(buildClaudeCodeCliSnippet("https://todos.example.vercel.app")).toBe(
-      "claude mcp add --transport http --scope user todos https://todos.example.vercel.app/api/mcp",
+      "claude mcp add --transport http --scope user memoria https://todos.example.vercel.app/api/mcp",
     );
   });
 });

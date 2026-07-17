@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { DriveFile } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import type { BoardState } from "../board/useBoard.js";
 
@@ -7,6 +8,9 @@ interface TopbarProps {
   boardStatus: BoardState["status"];
   lastSyncedAt: Date | null;
   profile: UserProfile | null;
+  /** All boards this account can see — rendered as tabs, current one active. */
+  boards: DriveFile[];
+  onSelectBoard: (id: string) => void;
   onOpenSettings: () => void;
   onSignOut: () => void;
   onSwitchBoard: () => void;
@@ -131,6 +135,8 @@ export function Topbar({
   boardStatus,
   lastSyncedAt,
   profile,
+  boards,
+  onSelectBoard,
   onOpenSettings,
   onSignOut,
   onSwitchBoard,
@@ -138,22 +144,49 @@ export function Topbar({
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
   const offline = boardStatus === "error";
   const label = syncLabel(boardStatus, lastSyncedAt);
+  const activeBoard = boards.find((b) => b.id === spreadsheetId);
 
   return (
     <div className="topbar">
-      <div className="topbar-left">
-        <div className="board-name">
-          <span className="glyph">✓</span> Todos
-        </div>
-        {/* Sync state lives quietly beside the name — a dot that's green when
-            healthy, amber when offline, with the detail in text on wide
-            screens and in the tooltip everywhere. */}
-        <div className={`sync${offline ? " offline" : ""}`} title={label} aria-label={label} role="status">
-          <span className="dot" />
-          <span className="sync-label">{label}</span>
-        </div>
+      <div className="wordmark">
+        <span className="wordmark-glyph" aria-hidden="true">
+          M
+        </span>
+        <span className="wordmark-name">Memoria</span>
       </div>
+
+      {/* One tab per board this account can see; + opens the board shelf. */}
+      <div className="board-tabs" role="tablist" aria-label="Boards">
+        {boards.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            role="tab"
+            aria-selected={b.id === spreadsheetId}
+            className={`board-tab${b.id === spreadsheetId ? " active" : ""}`}
+            onClick={() => b.id !== spreadsheetId && onSelectBoard(b.id)}
+          >
+            {b.name}
+          </button>
+        ))}
+        {boards.length === 0 && (
+          <span className="board-tab active" role="tab" aria-selected="true">
+            Board
+          </span>
+        )}
+        <button type="button" className="board-tab add-board" aria-label="Add board" onClick={onSwitchBoard}>
+          +
+        </button>
+      </div>
+
+      {/* Mobile shows just the active board's name where the tabs would be. */}
+      <span className="mobile-board-name">{activeBoard?.name ?? "Board"}</span>
+
       <div className="spacer" />
+      <div className={`sync${offline ? " offline" : ""}`} title={label} aria-label={label} role="status">
+        <span className="dot" />
+        <span className="sync-label">{label}</span>
+      </div>
       <a
         className="top-link"
         href={sheetUrl}

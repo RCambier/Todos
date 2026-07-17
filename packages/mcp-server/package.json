@@ -1,5 +1,5 @@
 {
-  "name": "@todos/mcp-server",
+  "name": "@memoria/mcp-server",
   "version": "0.1.0",
   "private": true,
   "description": "The Todos MCP server's tools and board logic, transport-free — mounted by the hosted connector in apps/web/api.",
@@ -21,7 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@todos/sheet-core": "^0.1.0",
+    "@memoria/sheet-core": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "zod": "^3.24.1"
   },

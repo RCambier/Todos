@@ -7,7 +7,7 @@ import {
   type Source,
   type Status,
   type Task,
-} from "@todos/sheet-core";
+} from "@memoria/sheet-core";
 import { appendRow, deleteRow, getValues, updateRow } from "../api/sheets.js";
 
 /** No row with the given task id was found in the freshest read. */

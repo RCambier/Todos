@@ -12,5 +12,5 @@ export function buildConnectorUrl(origin: string): string {
 
 /** One-liner for Claude Code's CLI (remote MCP over Streamable HTTP + OAuth). */
 export function buildClaudeCodeCliSnippet(origin: string): string {
-  return `claude mcp add --transport http --scope user todos ${buildConnectorUrl(origin)}`;
+  return `claude mcp add --transport http --scope user memoria ${buildConnectorUrl(origin)}`;
 }

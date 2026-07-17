@@ -1,5 +1,5 @@
 {
-  "name": "todos",
+  "name": "memoria",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "apps/web"
   ],
   "scripts": {
-    "prepare": "npm run build --workspace=@todos/sheet-core && npm run build --workspace=@todos/mcp-server",
+    "prepare": "npm run build --workspace=@memoria/sheet-core && npm run build --workspace=@memoria/mcp-server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",

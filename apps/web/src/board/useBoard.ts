@@ -1,4 +1,4 @@
-import { boardOrder, STATUSES, type SheetError, type Status, type Task } from "@todos/sheet-core";
+import { boardOrder, STATUSES, type SheetError, type Status, type Task } from "@memoria/sheet-core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { writeHeaderRow } from "../api/sheets.js";
 import * as boardApi from "./boardApi.js";

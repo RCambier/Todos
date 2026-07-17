@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { findBoards, type DriveFile } from "./api/drive.js";
 import { clearToken, fetchUserProfile, requestToken, type UserProfile } from "./auth/googleAuth.js";
 import {
   beginSignIn,
@@ -23,6 +24,7 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(() => consumeAuthError());
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => getCachedSpreadsheetId());
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [boards, setBoards] = useState<DriveFile[]>([]);
   // True on deployments without the auth backend (see docs/SETUP.md): sign-in
   // falls back to the GIS popup, and sessions last one visit.
   const [popupMode, setPopupMode] = useState(false);
@@ -52,16 +54,24 @@ export function App() {
   useEffect(() => {
     if (!token) {
       setProfile(null);
+      setBoards([]);
       return;
     }
     let cancelled = false;
     void fetchUserProfile(token).then((p) => {
       if (!cancelled) setProfile(p);
     });
+    void findBoards(token)
+      .then((found) => {
+        if (!cancelled) setBoards(found);
+      })
+      .catch(() => {
+        /* tabs just stay empty — the board itself doesn't depend on this */
+      });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, spreadsheetId]);
 
   // Boot: restore the persistent session with one silent call. No Google
   // popups here — the GIS popup can't open outside a click and is what made
@@ -168,6 +178,8 @@ export function App() {
       token={token}
       spreadsheetId={spreadsheetId}
       profile={profile}
+      boards={boards}
+      onSelectBoard={handleBoardReady}
       onSignOut={handleSignOut}
       onSwitchBoard={handleSwitchBoard}
     />

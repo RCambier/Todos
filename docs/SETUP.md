@@ -56,7 +56,7 @@ In the same **Credentials** page → **Create Credentials → API key**.
 
 ```bash
 git clone <your fork>
-cd Todos
+cd Memoria
 npm install
 cp apps/web/.env.example apps/web/.env
 ```
@@ -69,7 +69,7 @@ VITE_GOOGLE_API_KEY=<from step 5>
 ```
 
 ```bash
-npm run dev --workspace=@todos/web
+npm run dev --workspace=@memoria/web
 ```
 
 Open `http://localhost:5173`, connect your Google account, and create a
@@ -145,7 +145,7 @@ the connector operates on that account's most recently modified board.
 - **Claude Code**:
 
   ```bash
-  claude mcp add --transport http --scope user todos https://<your-deployment>/api/mcp
+  claude mcp add --transport http --scope user memoria https://<your-deployment>/api/mcp
   ```
 
   Then complete the OAuth prompt with `/mcp` in a session.

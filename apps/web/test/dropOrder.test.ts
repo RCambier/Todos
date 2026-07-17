@@ -1,4 +1,4 @@
-import type { Task } from "@todos/sheet-core";
+import type { Task } from "@memoria/sheet-core";
 import { describe, expect, it } from "vitest";
 import { computeDropSortOrder } from "../src/board/dropOrder.js";
 

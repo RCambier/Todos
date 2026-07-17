@@ -9,7 +9,7 @@ import { openBlob, sealBlob } from "./blob.js";
  * credential the user's own browser sent it.
  */
 
-export const SESSION_COOKIE_NAME = "todos_session";
+export const SESSION_COOKIE_NAME = "memoria_session";
 
 /** Sealed-blob purpose strings; distinct from the MCP connector's "oauth-*" purposes by design. */
 export const SESSION_PURPOSE = "web-session";

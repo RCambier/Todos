@@ -7,7 +7,7 @@ import {
   topSortOrder,
   type Status,
   type Task,
-} from "@todos/sheet-core";
+} from "@memoria/sheet-core";
 import type { SheetStore } from "./sheetStore.js";
 
 /** The sheet failed `sheet-core` validation. Message is precise and ready to show the user. */

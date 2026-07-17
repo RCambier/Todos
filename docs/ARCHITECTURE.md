@@ -1,5 +1,7 @@
 # Architecture
 
+Memoria: a kanban board whose only backend is a Google Sheet.
+
 A kanban todo app whose only backend is a Google Sheet in the user's own Drive.
 Two clients read and write that sheet: a static web app (the board UI) and a
 hosted MCP connector (for agents — claude.ai routines, Claude Code, any MCP
