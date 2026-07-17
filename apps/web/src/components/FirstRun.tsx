@@ -70,55 +70,59 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
   return (
     <div className="first-run">
       <div>
-        <h1>Set up your board</h1>
-        <p>Todos lives in a Google Sheet in your own Drive. Pick how to get started.</p>
+        <h1>Your boards</h1>
+        <p>Each board is a Google Sheet in your Drive.</p>
       </div>
 
       {error && <div className="first-run-error">{error}</div>}
 
-      <div className="paths">
-        {/* Only shown when there is something to reconnect to — a "none found"
-            card would just be noise on a genuine first run. */}
-        {boards && boards.length > 0 && (
-          <div className="path-card">
-            <h2>Found your existing board</h2>
-            <p>Boards this app created that you still have access to, on any device.</p>
-            <div className="board-list">
-              {boards.map((b) => (
-                <div className="board-pick" key={b.id}>
-                  <span>{b.name}</span>
-                  <button onClick={() => onBoardReady(b.id)}>Use this</button>
-                </div>
-              ))}
-            </div>
+      <div className="board-shelf">
+        {boards === null && !boardsError && (
+          <>
+            <div className="board-row skeleton" aria-hidden="true" />
+            <div className="board-row skeleton" aria-hidden="true" />
+          </>
+        )}
+        {boardsError && <p className="shelf-note">Couldn&rsquo;t list your boards: {boardsError}</p>}
+        {boards && boards.length === 0 && (
+          <div className="shelf-empty">
+            <SheetGlyph />
+            <p>No boards yet</p>
           </div>
         )}
-        {boardsError && (
-          <div className="path-card">
-            <h2>Found your existing board</h2>
-            <p>Couldn&rsquo;t list boards: {boardsError}</p>
-          </div>
-        )}
-
-        <div className="path-card">
-          <h2>Create a board</h2>
-          <p>Creates a new spreadsheet in your Drive, tagged so any device can find it later.</p>
-          <button className="btn-primary" onClick={handleCreate} disabled={busy !== null}>
-            {busy === "create" ? "Creating…" : "Create a board"}
+        {boards?.map((b) => (
+          <button className="board-row" key={b.id} onClick={() => onBoardReady(b.id)}>
+            <SheetGlyph />
+            <span className="board-name">{b.name}</span>
+            <span className="board-open">Open →</span>
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div className="path-card">
-          <h2>Use an existing sheet</h2>
-          <p>
-            Pick a spreadsheet from Drive. An empty sheet gets the right columns set up automatically; a sheet
-            with the right columns already is attached as-is.
-          </p>
-          <button className="btn-primary" onClick={handleAttach} disabled={busy !== null}>
-            {busy === "attach" ? "Opening…" : "Choose from Drive"}
-          </button>
-        </div>
+      <div className="board-actions">
+        <button className="btn-primary" onClick={handleCreate} disabled={busy !== null}>
+          {busy === "create" ? "Creating…" : "+ New board"}
+        </button>
+        <button className="btn-ghost" onClick={handleAttach} disabled={busy !== null}>
+          {busy === "attach" ? "Opening Drive…" : "Link a sheet as a board"}
+        </button>
       </div>
     </div>
+  );
+}
+
+/** Small Google-Sheets-style tile: green rounded square with a white grid. */
+function SheetGlyph() {
+  return (
+    <svg className="sheet-glyph" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="1" y="1" width="18" height="18" rx="4" fill="var(--status-done)" />
+      <path
+        d="M5.5 7h9M5.5 10h9M5.5 13h9M8.5 7v8.5"
+        stroke="#fff"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
   );
 }
