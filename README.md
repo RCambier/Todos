@@ -1,12 +1,13 @@
-# Todos
+# Memoria
 
+**Memoria** — a quiet memory for you and your agents, over Google Sheets you own.
 A kanban todo board whose only backend is a Google Sheet in your own Drive.
 Two clients read and write that sheet: a web app (the board UI) and an MCP
 server (for coding agents like Claude Code or Codex). Neither holds state —
 the sheet is the single source of truth, so your board, your agents, and
 Google Sheets itself are always looking at the same data.
 
-![The Todos board — three columns, colored tags, due dates](docs/design/screenshot-light.png)
+![The Memoria board — three columns, colored tags, due dates](docs/design/screenshot-light.png)
 
 No servers, no database, no stored user credentials. The web app is
 static files plus a stateless MCP endpoint; the only credential involved
@@ -43,10 +44,10 @@ Once you have credentials from [docs/SETUP.md](docs/SETUP.md):
 
 ```bash
 git clone <this repo>
-cd Todos
+cd Memoria
 npm install
 cp apps/web/.env.example apps/web/.env   # fill in your client ID / API key
-npm run dev --workspace=@todos/web
+npm run dev --workspace=@memoria/web
 ```
 
 ## Monorepo map
@@ -58,7 +59,7 @@ packages/mcp-server    The six MCP board tools (mounted by apps/web/api over HTT
 docs/                  Architecture, setup guide, design mockup
 ```
 
-- **`packages/sheet-core`** is the single definition of what a valid Todos
+- **`packages/sheet-core`** is the single definition of what a valid Memoria
   sheet is — both other packages depend on it. It's tested exhaustively
   since it's the thing standing between a typo and your data.
 - **`apps/web`** talks to Google Sheets/Drive directly via `fetch` using an

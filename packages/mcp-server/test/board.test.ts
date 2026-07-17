@@ -1,4 +1,4 @@
-import { HEADERS } from "@todos/sheet-core";
+import { HEADERS } from "@memoria/sheet-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as board from "../src/board.js";
 import { MalformedSheetError, TaskNotFoundError } from "../src/board.js";

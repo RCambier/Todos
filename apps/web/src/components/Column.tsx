@@ -1,5 +1,5 @@
 import { Droppable } from "@hello-pangea/dnd";
-import type { Status, Task } from "@todos/sheet-core";
+import type { Status, Task } from "@memoria/sheet-core";
 import { useState } from "react";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
@@ -23,7 +23,7 @@ interface ColumnProps {
   /** Attaches the mobile pager's panel ref to this column's root element. */
   panelRef: (el: HTMLDivElement | null) => void;
   onAdd: (input: NewTaskInput) => void;
-  onMove: (id: string, status: Status) => void;
+  onAdvance: (id: string, to: Status) => void;
   onEdit: (id: string, patch: { title: string; notes: string; dueDate: string; tags: string[] }) => void;
   onDelete: (id: string) => void;
 }
@@ -35,7 +35,7 @@ export function Column({
   readOnly,
   panelRef,
   onAdd,
-  onMove,
+  onAdvance,
   onEdit,
   onDelete,
 }: ColumnProps) {
@@ -78,7 +78,7 @@ export function Column({
                 index={index}
                 isTouch={isTouch}
                 readOnly={readOnly}
-                onMove={(s) => onMove(task.id, s)}
+                onAdvance={(to) => onAdvance(task.id, to)}
                 onEdit={(patch) => onEdit(task.id, patch)}
                 onDelete={() => onDelete(task.id)}
               />

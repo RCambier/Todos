@@ -1,5 +1,5 @@
 {
-  "name": "@todos/web",
+  "name": "@memoria/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@modelcontextprotocol/sdk": "1.26.0",
-    "@todos/mcp-server": "^0.1.0",
-    "@todos/sheet-core": "^0.1.0",
+    "@memoria/mcp-server": "^0.1.0",
+    "@memoria/sheet-core": "^0.1.0",
     "mcp-handler": "^1.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

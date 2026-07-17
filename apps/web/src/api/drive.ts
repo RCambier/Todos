@@ -1,4 +1,4 @@
-import { APP_PROPERTY_KEY, APP_PROPERTY_VALUE } from "@todos/sheet-core";
+import { APP_PROPERTY_KEY, APP_PROPERTY_VALUE } from "@memoria/sheet-core";
 import { authedFetch, authedJson } from "./http.js";
 
 const BASE = "https://www.googleapis.com/drive/v3/files";

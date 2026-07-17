@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { DriveFile } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import { useBoard } from "../board/useBoard.js";
 import { Board } from "./Board.js";
@@ -10,11 +11,21 @@ interface ShellProps {
   token: string;
   spreadsheetId: string;
   profile: UserProfile | null;
+  boards: DriveFile[];
+  onSelectBoard: (id: string) => void;
   onSignOut: () => void;
   onSwitchBoard: () => void;
 }
 
-export function Shell({ token, spreadsheetId, profile, onSignOut, onSwitchBoard }: ShellProps) {
+export function Shell({
+  token,
+  spreadsheetId,
+  profile,
+  boards,
+  onSelectBoard,
+  onSignOut,
+  onSwitchBoard,
+}: ShellProps) {
   const { state, lastSyncedAt, addTask, updateTask, moveTask, deleteTask } = useBoard(token, spreadsheetId);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -28,6 +39,8 @@ export function Shell({ token, spreadsheetId, profile, onSignOut, onSwitchBoard 
         boardStatus={state.status}
         lastSyncedAt={lastSyncedAt}
         profile={profile}
+        boards={boards}
+        onSelectBoard={onSelectBoard}
         onOpenSettings={() => setSettingsOpen(true)}
         onSignOut={onSignOut}
         onSwitchBoard={onSwitchBoard}

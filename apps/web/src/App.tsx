@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { findBoards, type DriveFile } from "./api/drive.js";
 import { clearToken, fetchUserProfile, requestToken, type UserProfile } from "./auth/googleAuth.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { Shell } from "./components/Shell.js";
@@ -13,20 +14,29 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => getCachedSpreadsheetId());
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [boards, setBoards] = useState<DriveFile[]>([]);
 
   useEffect(() => {
     if (!token) {
       setProfile(null);
+      setBoards([]);
       return;
     }
     let cancelled = false;
     void fetchUserProfile(token).then((p) => {
       if (!cancelled) setProfile(p);
     });
+    void findBoards(token)
+      .then((found) => {
+        if (!cancelled) setBoards(found);
+      })
+      .catch(() => {
+        /* tabs just stay empty — the board itself doesn't depend on this */
+      });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, spreadsheetId]);
 
   useEffect(() => {
     try {
@@ -102,6 +112,8 @@ export function App() {
       token={token}
       spreadsheetId={spreadsheetId}
       profile={profile}
+      boards={boards}
+      onSelectBoard={handleBoardReady}
       onSignOut={handleSignOut}
       onSwitchBoard={handleSwitchBoard}
     />

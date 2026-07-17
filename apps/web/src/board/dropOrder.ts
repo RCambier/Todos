@@ -1,4 +1,4 @@
-import { betweenSortOrder, topSortOrder, type Task } from "@todos/sheet-core";
+import { betweenSortOrder, topSortOrder, type Task } from "@memoria/sheet-core";
 
 /**
  * Computes the `sort_order` for a task dropped at `dropIndex` within a

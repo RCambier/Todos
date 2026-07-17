@@ -1,12 +1,12 @@
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { registerTools } from "@todos/mcp-server";
+import { registerTools } from "@memoria/mcp-server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { loadConfig, unconfiguredResponse } from "./_lib/config.js";
 import { DRIVE_FILE_SCOPE, fetchGoogleTokenInfo } from "./_lib/google.js";
 import { RemoteSheetStore } from "./_lib/sheetStore.js";
 
 /**
- * The hosted MCP endpoint: same six board tools as the local stdio server (`@todos/mcp-server`,
+ * The hosted MCP endpoint: same six board tools as the local stdio server (`@memoria/mcp-server`,
  * imported from its transport-free entrypoint), operating on whichever board is discovered for the
  * caller's own Google account. Authenticated per-request by the caller's Google access token —
  * there is no session, no server-side credential store, nothing to leak.
@@ -37,7 +37,7 @@ async function mcpHandler(request: Request): Promise<Response> {
   const store = new RemoteSheetStore(token);
   const perRequestHandler = createMcpHandler(
     (server) => registerTools(server, store),
-    { serverInfo: { name: "todos-mcp-server", version: "0.1.0" } },
+    { serverInfo: { name: "memoria-mcp-server", version: "0.1.0" } },
     { basePath: "/api" },
   );
   return perRequestHandler(request);

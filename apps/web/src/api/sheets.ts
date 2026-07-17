@@ -1,4 +1,4 @@
-import { HEADERS, SHEET_RANGE, SHEET_TAB_NAME } from "@todos/sheet-core";
+import { HEADERS, SHEET_RANGE, SHEET_TAB_NAME } from "@memoria/sheet-core";
 import { authedFetch, authedJson } from "./http.js";
 
 const BASE = "https://sheets.googleapis.com/v4/spreadsheets";

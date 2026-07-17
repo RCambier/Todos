@@ -6,7 +6,7 @@
  * exchange; the authorize redirect is inspected, not followed).
  *
  * Not shipped anywhere — run it from the repo root with:
- *   npm run smoke:oauth --workspace=@todos/web
+ *   npm run smoke:oauth --workspace=@memoria/web
  */
 import { createHash, randomBytes } from "node:crypto";
 

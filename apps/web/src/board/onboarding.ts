@@ -1,4 +1,4 @@
-import { isBlankRow, parseSheet } from "@todos/sheet-core";
+import { isBlankRow, parseSheet } from "@memoria/sheet-core";
 import { tagAsBoard } from "../api/drive.js";
 import { createSpreadsheet, getValues, writeHeaderRow } from "../api/sheets.js";
 

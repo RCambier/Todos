@@ -3,55 +3,39 @@ interface WelcomeProps {
   onConnect: () => void;
 }
 
-/** The logged-out landing screen: what this is, in one look — a board in front, a sheet behind. */
+/** The logged-out landing screen — design 1a "Connect": what Memoria is, in three quiet cards. */
 export function Welcome({ error, onConnect }: WelcomeProps) {
   return (
     <div className="welcome">
-      <div>
-        <h1>Todos</h1>
-        <p className="welcome-tagline">A quiet kanban board over a Google Sheet you own.</p>
-      </div>
+      <span className="welcome-glyph" aria-hidden="true">
+        M
+      </span>
+      <h1>Memoria</h1>
+      <p className="welcome-tagline">A quiet memory for you and your agents — over a Google Sheet you own.</p>
 
-      <div className="hero-art" aria-hidden="true">
-        <div className="art-sheet">
-          <div className="art-sheet-tab" />
+      <div className="welcome-features">
+        <div className="feature-card">
+          <span className="feature-icon" aria-hidden="true">
+            ✳
+          </span>
+          <span className="feature-title">Agents write</span>
+          <span className="feature-desc">Your AI agents read &amp; write over MCP.</span>
         </div>
-        <div className="art-board">
-          <div className="art-col">
-            <span className="art-pill pill-backlog">Backlog</span>
-            <div className="art-card">
-              <i style={{ width: "80%" }} />
-              <i style={{ width: "55%" }} />
-            </div>
-            <div className="art-card">
-              <i style={{ width: "65%" }} />
-            </div>
-          </div>
-          <div className="art-col">
-            <span className="art-pill pill-progress">In progress</span>
-            <div className="art-card lifted">
-              <i style={{ width: "75%" }} />
-              <i style={{ width: "45%" }} />
-            </div>
-          </div>
-          <div className="art-col">
-            <span className="art-pill pill-done">Done</span>
-            <div className="art-card done">
-              <i style={{ width: "70%" }} />
-            </div>
-            <div className="art-card done">
-              <i style={{ width: "50%" }} />
-            </div>
-          </div>
+        <div className="feature-card">
+          <span className="feature-icon" aria-hidden="true">
+            ⌗
+          </span>
+          <span className="feature-title">Sheets store</span>
+          <span className="feature-desc">Everything lives in plain spreadsheets in your Drive.</span>
+        </div>
+        <div className="feature-card">
+          <span className="feature-icon" aria-hidden="true">
+            ▦
+          </span>
+          <span className="feature-title">You see</span>
+          <span className="feature-desc">Boards and lists on top. Every view stays in sync.</span>
         </div>
       </div>
-
-      <p className="welcome-explain">
-        Your tasks live in a plain spreadsheet in your Drive — created for you on first run, yours to keep
-        either way. This app is the board on top: drag cards between columns here, edit rows in Google Sheets,
-        or let your AI agents work the same list over MCP. Every view stays in sync, and nothing ever leaves
-        your Drive.
-      </p>
 
       {error && <div className="first-run-error">{error}</div>}
 

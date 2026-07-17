@@ -1,4 +1,4 @@
-import type { SheetError } from "@todos/sheet-core";
+import type { SheetError } from "@memoria/sheet-core";
 
 interface MalformedBannerProps {
   error: SheetError;

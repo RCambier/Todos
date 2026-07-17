@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { STATUSES, type Task } from "@todos/sheet-core";
+import { STATUSES, type Task } from "@memoria/sheet-core";
 import { z } from "zod";
 import * as board from "./board.js";
 import type { SheetStore } from "./sheetStore.js";
@@ -36,7 +36,7 @@ function errorResult(err: unknown): { content: [{ type: "text"; text: string }];
 export function registerTools(server: McpServer, client: SheetStore): void {
   server.tool(
     "list_tasks",
-    "List tasks on the Todos board, in board order (backlog, then in_progress, then done; " +
+    "List tasks on the Memoria board, in board order (backlog, then in_progress, then done; " +
       "top to bottom within each). Optionally filter to a single status.",
     { status: statusSchema.optional().describe("Only return tasks in this column.") },
     async ({ status }) => {
