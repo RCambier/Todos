@@ -1,27 +1,39 @@
 # Todos
 
 A kanban todo board whose only backend is a Google Sheet in your own Drive.
-Two clients read and write that sheet: a static web app (the board UI) and
-an MCP server (for coding agents like Claude Code or Codex). Neither holds
-state — the sheet is the single source of truth, so your board, your agents,
-and Google Sheets itself are always looking at the same data.
+Two clients read and write that sheet: a web app (the board UI) and an MCP
+server (for coding agents like Claude Code or Codex). Neither holds state —
+the sheet is the single source of truth, so your board, your agents, and
+Google Sheets itself are always looking at the same data.
 
 > _Screenshot coming soon — for the visual spec in the meantime, open
 > `docs/design/mockup.html` in a browser._
 
-No servers, no database, no hosted secrets. The web app is static files
-deployed to Vercel; the only credentials involved are your own (Google
-sign-in in the browser, a service-account key on your machine for agents).
+No servers, no database, no hosted secrets. The web app is static files;
+the only credentials involved are your own (Google sign-in in the browser,
+a service-account key on your machine for agents). Your tasks live in a
+plain spreadsheet you own, readable forever with or without this app.
 
-See `docs/ARCHITECTURE.md` for the full design and `docs/design/mockup.html`
-for the visual spec.
+See `docs/ARCHITECTURE.md` for the full design.
 
-## Quickstart
+## Two ways to use it
 
-Setting up your own instance (your own Google Cloud credentials, your own
-Vercel deploy) takes about 15 minutes — follow **[docs/SETUP.md](docs/SETUP.md)**.
+**Just want a board?** Use a hosted instance — for example
+[todos-six-umber.vercel.app](https://todos-six-umber.vercel.app). Sign in
+with Google, click **+ New board**, and you have a kanban board backed by a
+sheet in your own Drive. The app can only touch files it created or that
+you explicitly picked (`drive.file` scope) — never the rest of your Drive —
+and the deployment stores nothing about you anywhere.
 
-For local development once you have credentials:
+**Want your own instance, or agent access?** Fork this repo and follow
+**[docs/SETUP.md](docs/SETUP.md)** (~15 minutes: your own free Google Cloud
+credentials, your own Vercel deploy). You can also connect a coding agent
+to a board from the hosted app alone — the Settings panel walks you through
+it; only a service account of your own is needed.
+
+## Quickstart (local development)
+
+Once you have credentials from [docs/SETUP.md](docs/SETUP.md):
 
 ```bash
 git clone <this repo>
