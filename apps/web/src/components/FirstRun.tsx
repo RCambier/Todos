@@ -77,13 +77,12 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
       {error && <div className="first-run-error">{error}</div>}
 
       <div className="paths">
-        <div className="path-card">
-          <h2>Found your existing board</h2>
-          <p>Boards this app created that you still have access to, on any device.</p>
-          {boards === null && !boardsError && <p>Looking…</p>}
-          {boardsError && <p>Couldn&rsquo;t list boards: {boardsError}</p>}
-          {boards && boards.length === 0 && <p>None found yet.</p>}
-          {boards && boards.length > 0 && (
+        {/* Only shown when there is something to reconnect to — a "none found"
+            card would just be noise on a genuine first run. */}
+        {boards && boards.length > 0 && (
+          <div className="path-card">
+            <h2>Found your existing board</h2>
+            <p>Boards this app created that you still have access to, on any device.</p>
             <div className="board-list">
               {boards.map((b) => (
                 <div className="board-pick" key={b.id}>
@@ -92,8 +91,14 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        {boardsError && (
+          <div className="path-card">
+            <h2>Found your existing board</h2>
+            <p>Couldn&rsquo;t list boards: {boardsError}</p>
+          </div>
+        )}
 
         <div className="path-card">
           <h2>Create a board</h2>
