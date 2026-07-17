@@ -1,10 +1,15 @@
+import { useEffect, useRef, useState } from "react";
+import type { UserProfile } from "../auth/googleAuth.js";
 import type { BoardState } from "../board/useBoard.js";
 
 interface TopbarProps {
   spreadsheetId: string;
   boardStatus: BoardState["status"];
   lastSyncedAt: Date | null;
+  profile: UserProfile | null;
   onOpenSettings: () => void;
+  onSignOut: () => void;
+  onSwitchBoard: () => void;
 }
 
 function syncLabel(status: BoardState["status"], lastSyncedAt: Date | null): string {
@@ -45,7 +50,91 @@ function AgentIcon() {
   );
 }
 
-export function Topbar({ spreadsheetId, boardStatus, lastSyncedAt, onOpenSettings }: TopbarProps) {
+/** The account button: profile photo when we have one, an initial otherwise. Opens a small menu. */
+function AccountMenu({
+  profile,
+  onSignOut,
+  onSwitchBoard,
+}: Pick<TopbarProps, "profile" | "onSignOut" | "onSwitchBoard">) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent): void {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const initial = (profile?.name || profile?.email || "?").slice(0, 1).toUpperCase();
+
+  return (
+    <div className="account" ref={rootRef}>
+      <button
+        type="button"
+        className="account-btn"
+        aria-label="Account"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {profile?.picture ? (
+          <img src={profile.picture} alt="" referrerPolicy="no-referrer" />
+        ) : (
+          <span className="account-initial">{initial}</span>
+        )}
+      </button>
+      {open && (
+        <div className="account-menu" role="menu">
+          {profile && (
+            <div className="account-info">
+              {profile.name && <span className="account-name">{profile.name}</span>}
+              {profile.email && <span className="account-email">{profile.email}</span>}
+            </div>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSwitchBoard();
+            }}
+          >
+            Switch board
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSignOut();
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Topbar({
+  spreadsheetId,
+  boardStatus,
+  lastSyncedAt,
+  profile,
+  onOpenSettings,
+  onSignOut,
+  onSwitchBoard,
+}: TopbarProps) {
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
   const offline = boardStatus === "error";
   const label = syncLabel(boardStatus, lastSyncedAt);
@@ -85,6 +174,7 @@ export function Topbar({ spreadsheetId, boardStatus, lastSyncedAt, onOpenSetting
         <AgentIcon />
         <span className="top-link-label">Connect from agents</span>
       </button>
+      <AccountMenu profile={profile} onSignOut={onSignOut} onSwitchBoard={onSwitchBoard} />
     </div>
   );
 }

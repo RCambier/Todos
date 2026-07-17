@@ -2,11 +2,8 @@
   "name": "@todos/mcp-server",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP stdio server that lets coding agents read and write the Todos board via a Google service account.",
+  "description": "The Todos MCP server's tools and board logic, transport-free — mounted by the hosted connector in apps/web/api.",
   "type": "module",
-  "bin": {
-    "todos-mcp-server": "./dist/index.js"
-  },
   "main": "./dist/mcp.js",
   "types": "./dist/mcp.d.ts",
   "exports": {
@@ -21,13 +18,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "test": "vitest run",
-    "start": "node dist/index.js"
+    "test": "vitest run"
   },
   "dependencies": {
     "@todos/sheet-core": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "googleapis": "^144.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { clearToken, requestToken } from "./auth/googleAuth.js";
+import { clearToken, fetchUserProfile, requestToken, type UserProfile } from "./auth/googleAuth.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { Shell } from "./components/Shell.js";
 import { Welcome } from "./components/Welcome.js";
@@ -12,6 +12,21 @@ export function App() {
   const [authBusy, setAuthBusy] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => getCachedSpreadsheetId());
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      setProfile(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchUserProfile(token).then((p) => {
+      if (!cancelled) setProfile(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     try {
@@ -45,10 +60,15 @@ export function App() {
     setSpreadsheetId(id);
   }
 
-  function handleDisconnect(): void {
+  /** Signs out of Google in this browser. The board stays cached — signing back in lands right on it. */
+  function handleSignOut(): void {
     clearToken();
-    clearCachedSpreadsheetId();
     setToken(null);
+  }
+
+  /** Forgets the cached board (the sheet itself is untouched) and returns to the board shelf. */
+  function handleSwitchBoard(): void {
+    clearCachedSpreadsheetId();
     setSpreadsheetId(null);
   }
 
@@ -77,5 +97,13 @@ export function App() {
     return <FirstRun token={token} onBoardReady={handleBoardReady} />;
   }
 
-  return <Shell token={token} spreadsheetId={spreadsheetId} onDisconnect={handleDisconnect} />;
+  return (
+    <Shell
+      token={token}
+      spreadsheetId={spreadsheetId}
+      profile={profile}
+      onSignOut={handleSignOut}
+      onSwitchBoard={handleSwitchBoard}
+    />
+  );
 }

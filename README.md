@@ -9,10 +9,10 @@ Google Sheets itself are always looking at the same data.
 > _Screenshot coming soon — for the visual spec in the meantime, open
 > `docs/design/mockup.html` in a browser._
 
-No servers, no database, no hosted secrets. The web app is static files;
-the only credentials involved are your own (Google sign-in in the browser,
-a service-account key on your machine for agents). Your tasks live in a
-plain spreadsheet you own, readable forever with or without this app.
+No servers, no database, no stored user credentials. The web app is
+static files plus a stateless MCP endpoint; the only credential involved
+is your own Google sign-in. Your tasks live in a plain spreadsheet you
+own, readable forever with or without this app.
 
 See `docs/ARCHITECTURE.md` for the full design.
 
@@ -27,17 +27,16 @@ and the deployment stores nothing about you anywhere.
 
 **Want your own instance, or agent access?** Fork this repo and follow
 **[docs/SETUP.md](docs/SETUP.md)** (~15 minutes: your own free Google Cloud
-credentials, your own Vercel deploy). You can also connect a coding agent
-to a board from the hosted app alone — the Settings panel walks you through
-it; only a service account of your own is needed.
+credentials, your own Vercel deploy).
 
-**Using claude.ai?** A deployment can optionally serve a hosted MCP
-connector at `https://<deployment>/api/mcp`: add it in claude.ai →
-Settings → Connectors, sign in with Google, and Claude gets the same six
-board tools against your own board — no install, and it works in scheduled
-and cloud routines too. See
-[docs/SETUP.md](docs/SETUP.md#10-hosted-mcp-connector-for-claudeai-optional-5-min)
-for the three env vars that switch it on.
+**Connecting your agents?** Every deployment serves an MCP connector at
+`https://<deployment>/api/mcp`: add it in claude.ai (Settings →
+Connectors) or Claude Code (`claude mcp add --transport http …`), sign in
+with Google, and your agent gets the six board tools against your own
+board — nothing to install, and it works in scheduled and cloud routines
+too. The app's **Connect from agents** panel walks you through it; see
+[docs/SETUP.md](docs/SETUP.md#8-enable-the-mcp-connector-5-min) for the
+three env vars that switch it on for a fork.
 
 ## Quickstart (local development)
 
@@ -56,7 +55,7 @@ npm run dev --workspace=@todos/web
 ```
 apps/web              React + TypeScript + Vite SPA — the board UI
 packages/sheet-core    Shared schema, validation, and ordering logic (no runtime deps)
-packages/mcp-server    MCP stdio server for coding agents (Claude Code, Codex, ...)
+packages/mcp-server    The six MCP board tools (mounted by apps/web/api over HTTP)
 docs/                  Architecture, setup guide, design mockup
 ```
 
@@ -66,9 +65,10 @@ docs/                  Architecture, setup guide, design mockup
 - **`apps/web`** talks to Google Sheets/Drive directly via `fetch` using an
   OAuth token scoped to `drive.file` (it can only see files it created or
   you explicitly picked).
-- **`packages/mcp-server`** exposes six tools (`list_tasks`, `add_task`,
-  `update_task`, `move_task`, `complete_task`, `delete_task`) over stdio,
-  authenticated as a service account you share your sheet with.
+- **`packages/mcp-server`** defines the six tools (`list_tasks`,
+  `add_task`, `update_task`, `move_task`, `complete_task`, `delete_task`),
+  transport-free; the Vercel function in `apps/web/api` serves them as a
+  remote MCP connector authenticated with each caller's own Google account.
 
 ## Scripts (from the repo root)
 

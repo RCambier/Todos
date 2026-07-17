@@ -41,20 +41,3 @@ export async function getFileMeta(
   const url = `${BASE}/${fileId}?fields=id,name,mimeType`;
   return authedJson(token, url);
 }
-
-/**
- * Shares the spreadsheet with a service account as a writer, without sending
- * a notification email (service accounts don't read inboxes).
- */
-export async function shareWithServiceAccount(
-  token: string,
-  fileId: string,
-  serviceAccountEmail: string,
-): Promise<void> {
-  const url = `${BASE}/${fileId}/permissions?sendNotificationEmail=false&fields=id`;
-  await authedFetch(token, url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role: "writer", type: "user", emailAddress: serviceAccountEmail }),
-  });
-}

@@ -1,4 +1,4 @@
-import { DRIVE_FILE_SCOPE, GOOGLE_CLIENT_ID } from "../config.js";
+import { AUTH_SCOPES, GOOGLE_CLIENT_ID } from "../config.js";
 
 // Types for `window.google.accounts.oauth2` live in ../global.d.ts — GIS
 // loads as a global via a <script> tag, there is no npm package for it.
@@ -38,7 +38,7 @@ export async function requestToken(interactive: boolean): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: DRIVE_FILE_SCOPE,
+      scope: AUTH_SCOPES,
       callback: (response) => {
         if (response.error || !response.access_token) {
           reject(new Error(response.error_description ?? response.error ?? "Sign-in failed."));
@@ -57,6 +57,31 @@ export async function requestToken(interactive: boolean): Promise<string> {
 
 export function getToken(): string | null {
   return currentToken;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  /** Google profile photo URL, or "" if none. */
+  picture: string;
+}
+
+/**
+ * Fetches the signed-in user's basic profile for the account menu. Returns
+ * `null` on any failure — the menu falls back to a generic avatar; identity
+ * display is never worth blocking the app over.
+ */
+export async function fetchUserProfile(token: string): Promise<UserProfile | null> {
+  try {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { name?: string; email?: string; picture?: string };
+    return { name: data.name ?? "", email: data.email ?? "", picture: data.picture ?? "" };
+  } catch {
+    return null;
+  }
 }
 
 export function clearToken(): void {

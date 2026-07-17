@@ -192,6 +192,80 @@ input {
 .top-link svg {
   flex-shrink: 0;
 }
+.account {
+  position: relative;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.account-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  cursor: pointer;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.account-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.account-initial {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 15, 15, 0.14);
+  padding: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px 9px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.account-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-email {
+  font-size: 12px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-menu button {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.account-menu button:hover {
+  background: var(--bg-subtle);
+}
 
 /* ---------- board ---------- */
 .board-scroll {

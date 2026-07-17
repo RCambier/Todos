@@ -1,9 +1,9 @@
 # Setup
 
 A walkthrough for forking this repo and running your own instance: your own
-Google Cloud credentials, your own Vercel deploy, your own service account
-for agents. Nothing in this repo talks to any server but Google's and yours.
-Should take about 15 minutes.
+Google Cloud credentials, your own Vercel deploy. Nothing in this repo talks
+to any server but Google's and yours. Should take about 15 minutes,
+including the MCP connector for your agents.
 
 ## 1. Create a Google Cloud project (2 min)
 
@@ -27,7 +27,8 @@ In **APIs & Services → OAuth consent screen**:
 1. Choose **External** (unless you're on Google Workspace and only need
    internal access) and fill in the required fields (app name, your email).
 2. Scopes: you don't need to add anything here — the app requests
-   `drive.file` at runtime, which doesn't require verification.
+   `drive.file` plus basic profile info at runtime, all non-sensitive
+   scopes that don't require verification.
 3. Test users: while the app is in **Testing** mode, add your own Google
    account (and anyone else who'll use this board) under **Test users**.
    This avoids Google's app-verification review, which is unnecessary for a
@@ -90,85 +91,15 @@ board. It's just a spreadsheet — open it from the topbar link to see it.
 `index.html`), so client-side routing (if any is added later) won't 404 on
 refresh.
 
-## 8. Connect an agent (service account) (3 min)
+## 8. Enable the MCP connector (5 min)
 
-This lets Claude Code, Codex, or any MCP-speaking agent read and write your
-board directly.
-
-1. In Google Cloud → **IAM & Admin → Service Accounts → Create Service
-   Account**. Name it anything (e.g. `todos-agent`). No project roles are
-   needed — access is granted by sharing the sheet, not IAM.
-2. Open the new service account → **Keys → Add Key → Create new key →
-   JSON**. Save the downloaded file somewhere _outside_ this repo, e.g.
-   `~/.config/todos/service-account.json`. Never commit it.
-3. Copy the service account's email address (looks like
-   `todos-agent@your-project.iam.gserviceaccount.com`).
-4. In the running web app, open **Settings**, paste that email under
-   **Connect an agent**, and click **Share**. This grants the service
-   account writer access to just this one spreadsheet (no notification
-   email is sent — service accounts don't read inboxes).
-5. The Settings panel also shows your spreadsheet ID and a ready-made MCP
-   config snippet — copy it for the next step.
-
-## 9. Build and configure the MCP server
-
-The server isn't published to npm — it's meant to be built once from your
-clone and run with `node` from there:
-
-```bash
-npm run build --workspace=@todos/mcp-server
-```
-
-This produces `packages/mcp-server/dist/index.js`. You need three things
-wherever your MCP client runs it:
-
-- the absolute path to that `dist/index.js`,
-- `TODOS_SPREADSHEET_ID` — from the Settings panel (it also generates this
-  whole snippet for you, pre-filled),
-- `GOOGLE_APPLICATION_CREDENTIALS` — absolute path to the JSON key from
-  step 8.2.
-
-### Claude Code
-
-Add to your project's `.mcp.json` (or run `claude mcp add`):
-
-```json
-{
-  "mcpServers": {
-    "todos": {
-      "command": "node",
-      "args": ["/absolute/path/to/Todos/packages/mcp-server/dist/index.js"],
-      "env": {
-        "TODOS_SPREADSHEET_ID": "<your spreadsheet id>",
-        "GOOGLE_APPLICATION_CREDENTIALS": "/absolute/path/to/service-account.json"
-      }
-    }
-  }
-}
-```
-
-### Codex
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.todos]
-command = "node"
-args = ["/absolute/path/to/Todos/packages/mcp-server/dist/index.js"]
-env = { TODOS_SPREADSHEET_ID = "<your spreadsheet id>", GOOGLE_APPLICATION_CREDENTIALS = "/absolute/path/to/service-account.json" }
-```
-
-Restart your agent, then ask it to list, add, or move tasks — it's using
-the same six tools described in `docs/ARCHITECTURE.md`.
-
-## 10. Hosted MCP connector for claude.ai (optional, 5 min)
-
-This lets anyone using your deployment add it as a claude.ai custom
-connector — the same six tools, but running on Vercel and authenticated
-with each user's own Google account instead of a service account. No
-install on any machine, and it works from claude.ai on the web and in
-scheduled/cloud routines. Skip this section entirely and nothing else is
-affected (`/api/*` just answers 503).
+This is how agents connect: your deployment serves a standard remote MCP
+server at `/api/mcp` — the six board tools, authenticated per-request with
+each user's own Google account (no credentials stored anywhere, no
+per-machine install). It works from claude.ai (including scheduled/cloud
+routines), Claude Code, and any MCP client speaking Streamable HTTP with
+OAuth. Skip this section and nothing else is affected (`/api/*` just
+answers 503).
 
 1. In **Google Cloud → Credentials → Create Credentials → OAuth client
    ID**, create a **second** client, also type **Web application**. Under
@@ -191,16 +122,34 @@ affected (`/api/*` just answers 503).
 
 3. Redeploy so the functions pick up the env vars.
 
-4. In claude.ai → **Settings → Connectors → Add custom connector**, paste
-   `https://<your-deployment>/api/mcp` (the app's Settings panel shows this
-   URL with a copy button), and approve the Google consent screen when it
-   appears. Sign in with the same Google account whose Drive holds your
-   board — the connector operates on that account's most recently modified
-   board.
+## 9. Connect your agents (1 min each)
+
+The connector URL is `https://<your-deployment>/api/mcp` — the app's
+**Connect from agents** panel shows it with a copy button and these same
+instructions. Sign in with the Google account whose Drive holds your board;
+the connector operates on that account's most recently modified board.
+
+- **claude.ai** (chats, projects, scheduled routines): Settings →
+  Connectors → **Add custom connector** → paste the URL → approve the
+  Google consent screen.
+- **Claude Code**:
+
+  ```bash
+  claude mcp add --transport http --scope user todos https://<your-deployment>/api/mcp
+  ```
+
+  Then complete the OAuth prompt with `/mcp` in a session.
+
+- **Other MCP clients** (Codex, Claude Desktop, …): add it as a remote
+  MCP server (Streamable HTTP); the client's own OAuth flow handles
+  sign-in.
+
+Ask your agent to list, add, or move tasks — it's using the six tools
+described in `docs/ARCHITECTURE.md`.
 
 To revoke a connector's access later, remove the app under
 [myaccount.google.com](https://myaccount.google.com) → **Security →
-Third-party access** (and delete the connector in claude.ai). The
+Third-party access** (and delete the connector in the client). The
 deployment itself stores nothing to revoke — it never sees or keeps your
 tokens beyond the request it's serving.
 
@@ -211,8 +160,10 @@ tokens beyond the request it's serving.
   Authorized JavaScript origins for your OAuth client.
 - **Picker doesn't open** — confirm the API key is unrestricted-enough to
   call the Picker API (step 5), and that you're signed in.
-- **MCP server exits immediately with a config error** — it prints exactly
-  what's missing (env var name, or a bad/missing key file path) to stderr.
+- **Connector answers 503** — one of the three env vars from step 8 is
+  missing or malformed on the deployment; the response body says which
+  setup step to revisit. A 401 with `WWW-Authenticate` is healthy — it
+  means the connector is up and asking the client to authenticate.
 - **"Sheet doesn't match the expected format"** — someone hand-edited the
   sheet in a way `sheet-core` can't parse. The banner names the exact row,
   column, and value; fix it in Google Sheets and the board resumes on the

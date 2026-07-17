@@ -1,40 +1,39 @@
 # Architecture
 
 A kanban todo app whose only backend is a Google Sheet in the user's own Drive.
-Three clients read and write that sheet: a static web app (the board UI), an
-MCP server (for coding agents like Claude Code or Codex), and an optional
-hosted MCP endpoint (for claude.ai custom connectors). None of them holds
-state; the sheet is the single source of truth.
+Two clients read and write that sheet: a static web app (the board UI) and a
+hosted MCP connector (for agents — claude.ai routines, Claude Code, any MCP
+client). Neither holds state; the sheet is the single source of truth.
 
 ```
-                       ┌────────────────────┐
-                       │   Google Sheet     │  ← single source of truth
-                       │   (user's Drive)   │
-                       └──┬───────▲──────┬──┘
-                Sheets API│       │      │Sheets API
-        ┌─────────────────┘       │      └────────────────┐
-        │                         │Sheets API             │
-┌───────▼────────┐      ┌─────────▼──────────┐   ┌────────▼─────────┐
-│  apps/web      │      │  apps/web/api      │   │ packages/        │
-│  static SPA    │      │  hosted MCP        │   │ mcp-server       │
-│  OAuth (user)  │      │  (optional)        │   │ service account  │
-└────────────────┘      │  OAuth (caller)    │   └────────▲─────────┘
-        │               └─────────▲──────────┘            │
-        │                         │                       │
-        └───────► packages/sheet-core ◄───────────────────┘
-                  (shared schema + validation)
+                 ┌────────────────────┐
+                 │   Google Sheet     │  ← single source of truth
+                 │   (user's Drive)   │
+                 └───────┬───▲────────┘
+             Sheets API  │   │  Sheets API
+        ┌────────────────┘   └───────────────┐
+        │                                    │
+┌───────▼────────┐                  ┌────────▼──────────┐
+│  apps/web      │                  │  apps/web/api     │
+│  static SPA    │                  │  hosted MCP       │
+│  OAuth (user)  │                  │  OAuth (caller)   │
+└───────┬────────┘                  └────────┬──────────┘
+        │            ┌────────────┐          │ tools from
+        └──────────► │ packages/  │ ◄────────┤ packages/mcp-server
+                     │ sheet-core │          │ (transport-free)
+                     └────────────┘
 ```
 
 ## Principles
 
 1. **The sheet is the database.** Both clients are stateless; sync happens
    because everyone reads and writes the same sheet.
-2. **No servers, no secrets.** The web app is static files; the only
-   credentials are the user's own (OAuth in the browser, a service-account key
-   on the user's machine). Nothing secret ever appears in this repo or its
-   deploys. (The optional hosted MCP connector adds exactly three server-side
-   env vars — deployment credentials, never user credentials — and nothing
-   else changes if you skip it.)
+2. **No servers to speak of, no stored user credentials.** The web app is
+   static files; the MCP connector is a stateless function that only ever
+   holds the caller's token for the duration of one request. The deployment's
+   own secrets are exactly three env vars (an OAuth client secret and a
+   signing secret — deployment credentials, never user credentials), and a
+   fork that skips them loses only the connector.
 3. **Never destroy user data.** Writes are surgical (one task at a time,
    row located by ID at write time). A malformed sheet makes the app
    read-only with a precise error — it is never auto-"repaired".
@@ -48,9 +47,10 @@ state; the sheet is the single source of truth.
 React + TypeScript + Vite static SPA. No backend of any kind.
 
 - **Auth**: Google Identity Services token model (browser-held, short-lived
-  access token, in memory only). Scope: `https://www.googleapis.com/auth/drive.file`
+  access token, in memory only). Scopes: `https://www.googleapis.com/auth/drive.file`
   — the app can only access files it created or files the user explicitly
-  picked. Sheets/Drive calls are plain `fetch` against the REST APIs.
+  picked — plus basic profile (name, photo, email) for the account menu; all
+  non-sensitive. Sheets/Drive calls are plain `fetch` against the REST APIs.
 - **First run** offers three paths that converge on a spreadsheet ID:
   1. *Found your existing board* — the app lists files it has access to,
      filtered by `appProperties.todosBoard = "1"` (set at creation), and
@@ -70,10 +70,9 @@ React + TypeScript + Vite static SPA. No backend of any kind.
 - **Malformed sheet**: if validation (from `sheet-core`) fails, show a
   banner naming the exact row/column/value, disable all mutations, keep
   polling — the board resumes automatically once the sheet is fixed.
-- **Agent connect panel** (settings): user pastes a service-account email;
-  the app shares the sheet with it (Drive permissions API, `writer` role,
-  no notification email) and shows the spreadsheet ID plus a ready-made MCP
-  config snippet.
+- **Connect from agents panel**: shows the deployment's connector URL and
+  ready-made instructions (claude.ai, Claude Code one-liner) — connecting an
+  agent is copy-paste plus a Google consent screen, nothing more.
 - **Build-time config** (public by design, via Vite env vars):
   `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` (Picker only).
 
@@ -90,14 +89,12 @@ Used by both other packages. Exports:
 - Ordering helpers (see *Ordering* below).
 - ID generation (crypto-random, URL-safe, e.g. 12-char base62).
 
-### `packages/mcp-server` — the agent connector
+### `packages/mcp-server` — the board tools
 
-Node + TypeScript, MCP over stdio, published-quality but run from the repo
-(`npx`/`node dist`). Auth: a Google service account the user shares the
-sheet with. Config via env vars:
-
-- `TODOS_SPREADSHEET_ID` — which sheet.
-- `GOOGLE_APPLICATION_CREDENTIALS` — path to the service-account key JSON.
+Node + TypeScript, transport-free: it defines the six MCP tools and the
+`SheetStore` interface they run against, and nothing else. The hosted
+connector (next section) mounts them over Streamable HTTP; tests run them
+against an in-memory fake.
 
 Tools (all mutations take a task `id` from `list_tasks`; every write
 re-locates the row by ID first, exactly like the web app):
@@ -115,11 +112,10 @@ No bulk or whole-sheet tools — a confused agent can damage at most one row,
 and Sheets version history covers recovery. Tasks created via MCP set
 `source = "agent"` (see schema) so the UI can show provenance.
 
-The package has two entrypoints: `dist/index.js` is the stdio server binary,
-and `dist/mcp.js` is a transport-free module exporting `registerTools` and
-the `SheetStore` interface — no `googleapis`, no filesystem access. The
-hosted connector (next section) registers the same six tools through that
-second entrypoint against its own `SheetStore`.
+The package's single entrypoint exports `registerTools` and the
+`SheetStore` interface — no HTTP, no filesystem access, no Google client.
+Board logic stays testable and transport-agnostic; transports live with
+their hosts.
 
 ### `apps/web/api` — hosted MCP connector (optional)
 
@@ -213,9 +209,9 @@ acceptable, and version history exists.
   endpoint; polling is free, simple, and plenty for a todo board.
 - **No backend, database, or session store** — the token model exists so
   static apps don't need them.
-- **No broad OAuth scopes** — `drive.file` only; the app cannot see the
-  rest of the user's Drive, which is the right trust posture for a public
-  reusable project.
+- **No broad OAuth scopes** — `drive.file` plus basic profile only; the app
+  cannot see the rest of the user's Drive, which is the right trust posture
+  for a public reusable project.
 - **No offline queue / CRDTs / realtime collab** — single user,
   last-write-wins.
 
@@ -225,7 +221,7 @@ acceptable, and version history exists.
 apps/web              React + TS + Vite SPA (@hello-pangea/dnd for drag & drop)
 apps/web/api          optional hosted MCP connector (Vercel Functions, mcp-handler)
 packages/sheet-core   shared schema/validation (no runtime deps)
-packages/mcp-server   MCP stdio server (@modelcontextprotocol/sdk, googleapis)
+packages/mcp-server   the six MCP board tools, transport-free (@modelcontextprotocol/sdk)
 docs/                 this file, SETUP.md, design/
 ```
 

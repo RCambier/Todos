@@ -1,11 +1,8 @@
 /**
- * Transport-free entrypoint: tool registration and the `SheetStore` contract,
- * without `googleapis` or `node:fs` (the stdio-only pieces live in
- * `sheetsClient.ts`, `env.ts`, and `index.ts`, none of which this file
- * imports). This is what lets a different host — e.g. the Vercel MCP
- * function in `apps/web/api/` — register the same six tools against a
- * different `SheetStore` implementation (REST `fetch` with a per-request
- * OAuth token instead of a service account).
+ * The package's entrypoint: tool registration and the `SheetStore` contract,
+ * deliberately transport-free. The hosted MCP function in `apps/web/api/`
+ * mounts these six tools over Streamable HTTP against its own `SheetStore`
+ * (REST `fetch` with the caller's per-request OAuth token).
  */
 export { registerTools } from "./tools.js";
 export type { SheetStore } from "./sheetStore.js";

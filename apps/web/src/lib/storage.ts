@@ -18,28 +18,3 @@ export function setCachedSpreadsheetId(id: string, store: KeyValueStore = localS
 export function clearCachedSpreadsheetId(store: KeyValueStore = localStorage): void {
   store.removeItem(SPREADSHEET_ID_KEY);
 }
-
-function sharedServiceAccountKey(spreadsheetId: string): string {
-  return `todos:sharedServiceAccount:${spreadsheetId}`;
-}
-
-/**
- * Remembers which service account a board has been shared with, so the
- * Settings panel's "connect an agent" guide still shows step 2 as done (and
- * step 3 visible) after closing and reopening it — independent of whether
- * the share happened in this browser session.
- */
-export function getSharedServiceAccountEmail(
-  spreadsheetId: string,
-  store: KeyValueStore = localStorage,
-): string | null {
-  return store.getItem(sharedServiceAccountKey(spreadsheetId));
-}
-
-export function setSharedServiceAccountEmail(
-  spreadsheetId: string,
-  email: string,
-  store: KeyValueStore = localStorage,
-): void {
-  store.setItem(sharedServiceAccountKey(spreadsheetId), email);
-}
