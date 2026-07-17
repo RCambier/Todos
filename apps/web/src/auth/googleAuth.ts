@@ -27,11 +27,13 @@ function loadGisScript(): Promise<void> {
 let currentToken: string | null = null;
 
 /**
- * Requests (or silently refreshes) a `drive.file`-scoped access token.
- * `interactive: false` tries to get a token without showing a consent
- * screen (used for silent refresh on load); pass `true` for the first sign-in.
+ * Requests a `drive.file`-scoped access token via the GIS popup. This is the
+ * *fallback* sign-in, used only on deployments without the auth backend
+ * (src/auth/session.ts): the popup can only open from a user gesture — a
+ * silent `prompt: "none"` variant of this call is popup-blocked on load,
+ * which is why it no longer exists — so call this from a click handler.
  */
-export async function requestToken(interactive: boolean): Promise<string> {
+export async function requestToken(): Promise<string> {
   await loadGisScript();
   if (!window.google) throw new Error("Google Identity Services failed to load.");
 
@@ -51,7 +53,7 @@ export async function requestToken(interactive: boolean): Promise<string> {
         reject(new Error(error.message ?? error.type ?? "Sign-in failed."));
       },
     });
-    client.requestAccessToken({ prompt: interactive ? "consent" : "none" });
+    client.requestAccessToken({ prompt: "consent" });
   });
 }
 

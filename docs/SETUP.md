@@ -91,27 +91,37 @@ board. It's just a spreadsheet — open it from the topbar link to see it.
 `index.html`), so client-side routing (if any is added later) won't 404 on
 refresh.
 
-## 8. Enable the MCP connector (5 min)
+## 8. Enable the MCP connector and persistent sign-in (5 min)
 
-This is how agents connect: your deployment serves a standard remote MCP
-server at `/api/mcp` — the six board tools, authenticated per-request with
-each user's own Google account (no credentials stored anywhere, no
-per-machine install). It works from claude.ai (including scheduled/cloud
-routines), Claude Code, and any MCP client speaking Streamable HTTP with
-OAuth. Skip this section and nothing else is affected (`/api/*` just
-answers 503).
+This one section powers two things:
+
+- **Agents**: your deployment serves a standard remote MCP server at
+  `/api/mcp` — the six board tools, authenticated per-request with each
+  user's own Google account (no credentials stored anywhere, no
+  per-machine install). It works from claude.ai (including scheduled/cloud
+  routines), Claude Code, and any MCP client speaking Streamable HTTP with
+  OAuth.
+- **Staying signed in**: the web app uses the same backend to keep users
+  signed in across visits (a refresh token sealed into an httpOnly cookie
+  — the server still stores nothing). Skip this section and the board
+  still works, but sign-in falls back to a Google popup on every visit
+  (and popups are unreliable on mobile); everything else under `/api/*`
+  just answers 503.
 
 1. In **Google Cloud → Credentials → Create Credentials → OAuth client
    ID**, create a **second** client, also type **Web application**. Under
    **Authorized redirect URIs** (not JavaScript origins this time), add
-   exactly:
+   exactly these two:
 
    ```
    https://<your-deployment>/api/oauth/callback
+   https://<your-deployment>/api/auth/callback
    ```
 
-   e.g. `https://your-app.vercel.app/api/oauth/callback`. Save, and copy
-   the client ID **and** client secret.
+   e.g. `https://your-app.vercel.app/api/oauth/callback` and
+   `https://your-app.vercel.app/api/auth/callback` (the first serves MCP
+   clients, the second the web app's own sign-in). Save, and copy the
+   client ID **and** client secret.
 
 2. In your Vercel project settings, add three environment variables:
    - `GOOGLE_OAUTH_CLIENT_ID` — from the client you just created,

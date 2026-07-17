@@ -46,18 +46,36 @@ client). Neither holds state; the sheet is the single source of truth.
 
 React + TypeScript + Vite static SPA. No backend of any kind.
 
-- **Auth**: Google Identity Services token model (browser-held, short-lived
-  access token, in memory only). Scopes: `https://www.googleapis.com/auth/drive.file`
-  — the app can only access files it created or files the user explicitly
-  picked — plus basic profile (name, photo, email) for the account menu; all
-  non-sensitive. Sheets/Drive calls are plain `fetch` against the REST APIs.
+- **Auth**: two modes, picked automatically at boot by probing
+  `POST /api/auth/session`.
+  - **Persistent session** (default when the deployment sets the three
+    `/api` env vars): sign-in is a top-level redirect through
+    `/api/auth/start` → Google consent → `/api/auth/callback`, which
+    exchanges the code server-side and seals the Google **refresh token**
+    into an httpOnly, `Path=/api/auth` cookie (AES-256-GCM, same sealed-blob
+    scheme as the MCP OAuth proxy; server stays stateless). Every later
+    visit silently mints a fresh access token from the cookie via
+    `/api/auth/session`; the app renews it shortly before expiry and when a
+    hidden tab becomes visible again. No popups anywhere — this is what
+    makes sign-in work on mobile. Sign-out clears the cookie only (revoking
+    the grant entirely is left to myaccount.google.com).
+  - **Popup fallback** (deployments without the `/api` env vars, where the
+    probe answers 503): Google Identity Services token model from a click —
+    browser-held, short-lived access token, in memory only, re-requested
+    each visit. GIS's `prompt: "none"` "silent refresh" is deliberately not
+    used: it opens a popup, and popups outside a user gesture are blocked.
+  - Scopes in both modes: `https://www.googleapis.com/auth/drive.file` — the
+    app can only access files it created or files the user explicitly picked
+    — plus basic profile (name, photo, email) for the account menu; all
+    non-sensitive. Sheets/Drive calls are plain `fetch` against the REST
+    APIs with the browser-held access token.
 - **First run** offers three paths that converge on a spreadsheet ID:
-  1. *Found your existing board* — the app lists files it has access to,
+  1. _Found your existing board_ — the app lists files it has access to,
      filtered by `appProperties.todosBoard = "1"` (set at creation), and
      offers to reconnect. This is the multi-device path.
-  2. *Create a board* — creates the spreadsheet (tagged with the
+  2. _Create a board_ — creates the spreadsheet (tagged with the
      appProperty), writes the header row.
-  3. *Use an existing sheet* — Google Picker. Empty sheet → bootstrap
+  3. _Use an existing sheet_ — Google Picker. Empty sheet → bootstrap
      headers; valid headers → attach; anything else → refuse with a clear
      message.
 - The chosen spreadsheet ID is cached in `localStorage`.
@@ -86,7 +104,7 @@ Used by both other packages. Exports:
 - `parseSheet(rows) → { ok: true, tasks } | { ok: false, error }` where
   `error` pinpoints row, column, and offending value in a human sentence.
 - `taskToRow(task)` / `rowToTask(row)` serialization.
-- Ordering helpers (see *Ordering* below).
+- Ordering helpers (see _Ordering_ below).
 - ID generation (crypto-random, URL-safe, e.g. 12-char base62).
 
 ### `packages/mcp-server` — the board tools
@@ -99,14 +117,14 @@ against an in-memory fake.
 Tools (all mutations take a task `id` from `list_tasks`; every write
 re-locates the row by ID first, exactly like the web app):
 
-| tool | input | behavior |
-|---|---|---|
-| `list_tasks` | optional `status` filter | tasks in board order |
-| `add_task` | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column |
-| `update_task` | `id`, optional `title`, `notes`, `due_date`, `tags` | edit fields |
-| `move_task` | `id`, `status` | move to top of target column |
-| `complete_task` | `id` | sugar for `move_task(done)` |
-| `delete_task` | `id` | delete that row |
+| tool            | input                                                                       | behavior                     |
+| --------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| `list_tasks`    | optional `status` filter                                                    | tasks in board order         |
+| `add_task`      | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column      |
+| `update_task`   | `id`, optional `title`, `notes`, `due_date`, `tags`                         | edit fields                  |
+| `move_task`     | `id`, `status`                                                              | move to top of target column |
+| `complete_task` | `id`                                                                        | sugar for `move_task(done)`  |
+| `delete_task`   | `id`                                                                        | delete that row              |
 
 No bulk or whole-sheet tools — a confused agent can damage at most one row,
 and Sheets version history covers recovery. Tasks created via MCP set
@@ -117,22 +135,23 @@ The package's single entrypoint exports `registerTools` and the
 Board logic stays testable and transport-agnostic; transports live with
 their hosts.
 
-### `apps/web/api` — hosted MCP connector (optional)
+### `apps/web/api` — hosted MCP connector + web sessions (optional)
 
 Vercel Functions deployed alongside the static build, so any user of a
 deployed instance can add `https://<deployment>/api/mcp` as a claude.ai
 custom connector and get the same six tools operating on **their** board in
-**their** Drive. It is opt-in per deployment: it activates only when three
-env vars are set (below); a fork that skips them serves 503 on `/api/*` with
-a plain explanation and loses nothing else — the static app is completely
-unaffected.
+**their** Drive. The same functions also back the web app's persistent
+sign-in (`/api/auth/*`, described under *apps/web* above). It is opt-in per
+deployment: it activates only when three env vars are set (below); a fork
+that skips them serves 503 on `/api/*` with a plain explanation — the
+static app still works, with sign-in degrading to the per-visit popup.
 
 The server is stateless in the same spirit as everything else: no database,
 no session store, no stored user credentials. Auth is the MCP authorization
 spec pattern with this deployment acting as an OAuth authorization server
 that proxies Google:
 
-- Dynamic Client Registration returns a `client_id` that *is* the client's
+- Dynamic Client Registration returns a `client_id` that _is_ the client's
   redirect URIs (base64url + HMAC tag), so `/authorize` can validate it
   without storage. Redirect URIs are allowlisted to exactly the claude.ai
   and claude.com MCP callbacks.
@@ -142,7 +161,7 @@ that proxies Google:
   `state` to Google, and redirects to Google's consent screen
   (`drive.file` scope, offline access).
 - `/api/oauth/callback` verifies the blob (10-minute TTL), wraps Google's
-  authorization code in a fresh sealed blob — *our* authorization code —
+  authorization code in a fresh sealed blob — _our_ authorization code —
   and redirects back to the client.
 - `/api/oauth/token` opens that blob, verifies the PKCE verifier
   (constant-time), exchanges the embedded Google code using our client
@@ -166,18 +185,18 @@ credentials, not user credentials.
 
 One tab named `Tasks`. Row 1 is the header, frozen. Columns:
 
-| column | type | notes |
-|---|---|---|
-| `id` | string | stable random ID, never reused |
-| `title` | string | required, non-empty |
-| `status` | enum | `backlog` \| `in_progress` \| `done` |
-| `sort_order` | number | ascending within a column = top→bottom |
-| `notes` | string | optional |
-| `source` | string | `user` or `agent`; informational only |
-| `created_at` | ISO 8601 string | set once |
-| `updated_at` | ISO 8601 string | set on every mutation |
-| `due_date` | string | `YYYY-MM-DD` or empty; optional |
-| `tags` | string | comma-separated labels; optional (so tag names can't contain commas) |
+| column       | type            | notes                                                                |
+| ------------ | --------------- | -------------------------------------------------------------------- |
+| `id`         | string          | stable random ID, never reused                                       |
+| `title`      | string          | required, non-empty                                                  |
+| `status`     | enum            | `backlog` \| `in_progress` \| `done`                                 |
+| `sort_order` | number          | ascending within a column = top→bottom                               |
+| `notes`      | string          | optional                                                             |
+| `source`     | string          | `user` or `agent`; informational only                                |
+| `created_at` | ISO 8601 string | set once                                                             |
+| `updated_at` | ISO 8601 string | set on every mutation                                                |
+| `due_date`   | string          | `YYYY-MM-DD` or empty; optional                                      |
+| `tags`       | string          | comma-separated labels; optional (so tag names can't contain commas) |
 
 Validation rules (enforced identically by both clients via `sheet-core`):
 header row must match exactly; `id`, `title`, `status` required;
@@ -207,8 +226,9 @@ acceptable, and version history exists.
 
 - **No push/webhook sync** — Drive push notifications need a hosted HTTPS
   endpoint; polling is free, simple, and plenty for a todo board.
-- **No backend, database, or session store** — the token model exists so
-  static apps don't need them.
+- **No database or server-side session store** — the web session is a
+  refresh token sealed into the user's own cookie; the functions stay
+  stateless and store nothing.
 - **No broad OAuth scopes** — `drive.file` plus basic profile only; the app
   cannot see the rest of the user's Drive, which is the right trust posture
   for a public reusable project.

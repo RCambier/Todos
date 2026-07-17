@@ -27,12 +27,14 @@ export function buildGoogleAuthorizeUrl(opts: {
   googleClientId: string;
   redirectUri: string;
   state: string;
+  /** Defaults to `drive.file` alone (the MCP connector's grant). */
+  scope?: string;
 }): string {
   const params = new URLSearchParams({
     client_id: opts.googleClientId,
     redirect_uri: opts.redirectUri,
     response_type: "code",
-    scope: DRIVE_FILE_SCOPE,
+    scope: opts.scope ?? DRIVE_FILE_SCOPE,
     access_type: "offline",
     prompt: "consent",
     state: opts.state,
