@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { findBoards, type DriveFile } from "../api/drive.js";
 import { pickSpreadsheet } from "../api/picker.js";
 import { attachOrBootstrap, createBoard } from "../board/onboarding.js";
@@ -20,6 +20,12 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
   const [boardsError, setBoardsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (naming) nameInputRef.current?.select();
+  }, [naming]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,11 +41,13 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
     };
   }, [token]);
 
-  async function handleCreate(): Promise<void> {
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const title = nameInputRef.current?.value.trim() || "Todos";
     setBusy("create");
     setError(null);
     try {
-      const id = await createBoard(token);
+      const id = await createBoard(token, title);
       onBoardReady(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -99,14 +107,40 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
         ))}
       </div>
 
-      <div className="board-actions">
-        <button className="btn-primary" onClick={handleCreate} disabled={busy !== null}>
-          {busy === "create" ? "Creating…" : "+ New board"}
-        </button>
-        <button className="btn-ghost" onClick={handleAttach} disabled={busy !== null}>
-          {busy === "attach" ? "Opening Drive…" : "Link a sheet as a board"}
-        </button>
-      </div>
+      {naming ? (
+        <form className="board-name-form" onSubmit={handleCreate}>
+          <input
+            ref={nameInputRef}
+            type="text"
+            defaultValue="Todos"
+            aria-label="Board name"
+            disabled={busy !== null}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && busy === null) setNaming(false);
+            }}
+          />
+          <button className="btn-primary" type="submit" disabled={busy !== null}>
+            {busy === "create" ? "Creating…" : "Create"}
+          </button>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={() => setNaming(false)}
+            disabled={busy !== null}
+          >
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <div className="board-actions">
+          <button className="btn-primary" onClick={() => setNaming(true)} disabled={busy !== null}>
+            + New board
+          </button>
+          <button className="btn-ghost" onClick={handleAttach} disabled={busy !== null}>
+            {busy === "attach" ? "Opening Drive…" : "Link a sheet as a board"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

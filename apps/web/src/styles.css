@@ -969,6 +969,21 @@ kbd {
   flex-wrap: wrap;
   gap: 10px;
 }
+.board-name-form {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.board-name-form input {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+  background: var(--card);
+  color: var(--ink);
+  width: 200px;
+}
 .btn-ghost {
   background: var(--card);
   color: var(--ink);
