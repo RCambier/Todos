@@ -172,10 +172,9 @@ input {
   font-weight: 600;
   white-space: nowrap;
 }
-/* The "ia" — a different voice: italic at a lighter weight (design 4d, italic variant). */
+/* The "ia" carries the AI — design 4d, green variant (#4C9A66 = --status-done-dot). */
 .wordmark-ia {
-  font-style: italic;
-  font-weight: 500;
+  color: var(--status-done-dot);
 }
 .board-tabs {
   display: flex;
@@ -818,13 +817,6 @@ kbd {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.01em;
-}
-/* Design 4d, first card: at hero size the "ia" carries the AI in green
-   (#4C9A66 = --status-done-dot), not the topbar's quiet italic. */
-.welcome-wordmark .wordmark-ia {
-  font-style: normal;
-  font-weight: 700;
-  color: var(--status-done-dot);
 }
 .welcome-headline {
   font-size: 34px;
@@ -1486,21 +1478,24 @@ kbd {
     justify-content: center;
     padding: 8px;
   }
-  /* 2a header: logo (→ board shelf) + board name; the tabs are desktop chrome. */
-  .board-tabs,
-  .wordmark-name {
+  /* 2a header: full brand (logo + name → board shelf); the tabs are desktop chrome. */
+  .board-tabs {
     display: none;
   }
   .wordmark {
-    min-width: 38px;
     min-height: 38px;
-    justify-content: center;
-    padding: 0;
+    gap: 7px;
+    padding: 0 6px 0 0;
     margin: 0;
   }
   .mobile-board-name {
     display: block;
     flex: 1;
+    font-size: 15px;
+  }
+  /* All slack goes to the board name — the spacer would otherwise take half. */
+  .topbar .spacer {
+    flex: 0;
   }
   /* The right-side cluster reads as one row of equal 38px cells: sync dot,
      sheet link, agents, account. */
