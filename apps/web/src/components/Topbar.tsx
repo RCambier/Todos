@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DriveFile } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import type { BoardState } from "../board/useBoard.js";
+import { Logo } from "./Logo.js";
 
 interface TopbarProps {
   spreadsheetId: string;
@@ -150,7 +151,7 @@ export function Topbar({
     <div className="topbar">
       <div className="wordmark">
         <span className="wordmark-glyph" aria-hidden="true">
-          M
+          <Logo size={24} />
         </span>
         <span className="wordmark-name">
           Memor<span className="wordmark-ia">ia</span>

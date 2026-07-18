@@ -147,16 +147,12 @@ input {
   gap: 9px;
   flex-shrink: 0;
 }
+/* The logo SVG (components/Logo.tsx) draws its own disc; this just sizes the slot. */
 .wordmark-glyph {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--accent-contrast);
   display: grid;
   place-items: center;
-  font-size: 12px;
-  font-weight: 700;
 }
 .wordmark-name {
   font-size: 15px;
@@ -789,13 +785,8 @@ kbd {
 .welcome-glyph {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: var(--accent-contrast);
   display: grid;
   place-items: center;
-  font-size: 20px;
-  font-weight: 700;
 }
 .welcome h1 {
   font-size: 30px;

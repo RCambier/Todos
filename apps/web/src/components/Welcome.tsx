@@ -1,3 +1,5 @@
+import { Logo } from "./Logo.js";
+
 interface WelcomeProps {
   error: string | null;
   onConnect: () => void;
@@ -8,7 +10,7 @@ export function Welcome({ error, onConnect }: WelcomeProps) {
   return (
     <div className="welcome">
       <span className="welcome-glyph" aria-hidden="true">
-        M
+        <Logo size={44} />
       </span>
       <h1>
         Memor<span className="wordmark-ia">ia</span>
