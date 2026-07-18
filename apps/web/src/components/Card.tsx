@@ -2,7 +2,6 @@ import { Draggable } from "@hello-pangea/dnd";
 import type { Task } from "@memoria/sheet-core";
 import { useState } from "react";
 import { formatDueDate, isOverdue } from "../lib/dates.js";
-import { tagColorClass } from "../lib/tagColor.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
 
 interface CardProps {
@@ -108,18 +107,9 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
                 )}
               </div>
               {task.notes && <p className="notes">{task.notes}</p>}
-              {task.tags.length > 0 && (
-                <div className="card-tags">
-                  {task.tags.map((t) => (
-                    <span key={t} className={`tag ${tagColorClass(t)}`}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Meta line = due date only. No created date (noise on a board), and
-                  no agent chip (provenance lives in the detail dialog). No due date
-                  → no meta line at all. */}
+              {/* Meta line = due date only. No created date (noise on a board), no
+                  agent chip, and no tags — provenance and tags live in the detail
+                  dialog. No due date → no meta line at all. */}
               {task.dueDate && (
                 <div className="meta">
                   <span className={`due${isOverdue(task) ? " overdue" : ""}`} title={`Due ${task.dueDate}`}>
