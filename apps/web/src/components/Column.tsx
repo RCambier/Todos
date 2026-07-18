@@ -3,6 +3,7 @@ import type { Status, Task } from "@memoria/sheet-core";
 import { useState } from "react";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
+import type { TaskDetailMode } from "./TaskDetail.js";
 
 const STATUS_LABEL: Record<Status, string> = {
   backlog: "Backlog",
@@ -22,11 +23,11 @@ interface ColumnProps {
   /** Attaches the mobile pager's panel ref to this column's root element. */
   panelRef: (el: HTMLDivElement | null) => void;
   onAdd: (input: NewTaskInput) => void;
-  onEdit: (id: string, patch: { title: string; notes: string; dueDate: string; tags: string[] }) => void;
-  onDelete: (id: string) => void;
+  /** Opens the task detail dialog for a card in this column. */
+  onOpen: (id: string, mode: TaskDetailMode) => void;
 }
 
-export function Column({ status, tasks, readOnly, panelRef, onAdd, onEdit, onDelete }: ColumnProps) {
+export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen }: ColumnProps) {
   const [composerOpen, setComposerOpen] = useState(false);
 
   return (
@@ -65,8 +66,7 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onEdit, onDel
                 task={task}
                 index={index}
                 readOnly={readOnly}
-                onEdit={(patch) => onEdit(task.id, patch)}
-                onDelete={() => onDelete(task.id)}
+                onOpen={(mode) => onOpen(task.id, mode)}
               />
             ))}
             {provided.placeholder}

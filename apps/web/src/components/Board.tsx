@@ -3,6 +3,7 @@ import { STATUSES, type Status, type Task } from "@memoria/sheet-core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Column } from "./Column.js";
 import type { NewTaskInput } from "./Composer.js";
+import { TaskDetail, type TaskDetailMode } from "./TaskDetail.js";
 
 const STATUS_LABEL: Record<Status, string> = {
   backlog: "Backlog",
@@ -27,6 +28,9 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
   // While a card is mid-drag the pager's scroll snapping is suspended so the
   // library's edge auto-scroll can carry the card to a neighboring column.
   const [cardDragging, setCardDragging] = useState(false);
+  // The open task detail dialog, if any. The task itself is looked up live so
+  // edits (or a sync) refresh the dialog rather than showing stale data.
+  const [detail, setDetail] = useState<{ taskId: string; mode: TaskDetailMode } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<Partial<Record<Status, HTMLDivElement>>>({});
 
@@ -35,6 +39,9 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
     for (const t of tasks) map[t.status].push(t);
     return map;
   }, [tasks]);
+
+  // If the open task vanishes (deleted elsewhere, board switch), the dialog goes with it.
+  const detailTask = detail ? tasks.find((t) => t.id === detail.taskId) : undefined;
 
   // Land on the "In progress" panel by default (no animation — this is the
   // initial position, not a navigation). useLayoutEffect so it happens
@@ -123,8 +130,7 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
               tasks={byStatus[status]}
               readOnly={readOnly}
               onAdd={(input) => onAdd(status, input)}
-              onEdit={onEdit}
-              onDelete={onDelete}
+              onOpen={(id, mode) => setDetail({ taskId: id, mode })}
             />
           ))}
         </div>
@@ -134,6 +140,19 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
           <span key={status} className={status === activeMobileStatus ? "dot active" : "dot"} />
         ))}
       </div>
+      {detailTask && detail && (
+        <TaskDetail
+          task={detailTask}
+          initialMode={detail.mode}
+          readOnly={readOnly}
+          onClose={() => setDetail(null)}
+          onSave={(patch) => onEdit(detailTask.id, patch)}
+          onDelete={() => {
+            onDelete(detailTask.id);
+            setDetail(null);
+          }}
+        />
+      )}
     </div>
   );
 }

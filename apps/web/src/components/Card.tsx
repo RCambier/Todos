@@ -1,54 +1,32 @@
 import { Draggable } from "@hello-pangea/dnd";
 import type { Task } from "@memoria/sheet-core";
 import { useState } from "react";
+import { formatDueDate, formatShortDate, isOverdue } from "../lib/dates.js";
 import { tagColorClass } from "../lib/tagColor.js";
-import { TaskForm, type TaskFormValues } from "./TaskForm.js";
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-/** Formats a `YYYY-MM-DD` due date as e.g. "Jul 21" (local, no timezone drift). */
-function formatDueDate(dueDate: string): string {
-  const d = new Date(`${dueDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return dueDate;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-/** A due date is overdue once the local calendar day has passed — unless the task is done. */
-function isOverdue(task: Task): boolean {
-  if (!task.dueDate || task.status === "done") return false;
-  const today = new Date();
-  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  return task.dueDate < localToday;
-}
+import type { TaskDetailMode } from "./TaskDetail.js";
 
 interface CardProps {
   task: Task;
   /** Position within the destination column's rendered list — the draggable index. */
   index: number;
   readOnly: boolean;
-  onEdit: (patch: { title: string; notes: string; dueDate: string; tags: string[] }) => void;
-  onDelete: () => void;
+  /** Opens the task detail dialog: click → view, menu → edit / confirm delete. */
+  onOpen: (mode: TaskDetailMode) => void;
 }
 
-export function Card({ task, index, readOnly, onEdit, onDelete }: CardProps) {
-  const [editing, setEditing] = useState(false);
+export function Card({ task, index, readOnly, onOpen }: CardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Mouse drags start immediately; touch drags start after the library's
-  // long-press delay, so a plain swipe on a card falls through to the
-  // board's native horizontal scroll. Editing suspends dragging.
-  const dragDisabled = readOnly || editing;
-
-  function handleSave(values: TaskFormValues): void {
-    setEditing(false);
-    onEdit(values);
+  function pick(mode: TaskDetailMode): (e: React.MouseEvent) => void {
+    return (e) => {
+      e.stopPropagation();
+      setMenuOpen(false);
+      onOpen(mode);
+    };
   }
 
   return (
-    <Draggable draggableId={task.id} index={index} isDragDisabled={dragDisabled}>
+    <Draggable draggableId={task.id} index={index} isDragDisabled={readOnly}>
       {(provided, snapshot) => {
         // The library owns `style.transform` for positioning/drop animation;
         // merge our lift-and-tilt on top rather than overriding it via CSS
@@ -60,42 +38,57 @@ export function Card({ task, index, readOnly, onEdit, onDelete }: CardProps) {
             : provided.draggableProps.style?.transform,
         };
 
-        if (editing) {
-          return (
-            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-              <TaskForm
-                initial={{ title: task.title, notes: task.notes, dueDate: task.dueDate, tags: task.tags }}
-                submitLabel="Save"
-                onSubmit={handleSave}
-                onCancel={() => setEditing(false)}
-              />
-            </div>
-          );
-        }
-
         return (
           <div ref={provided.innerRef} {...provided.draggableProps} style={style}>
             <div
               {...provided.dragHandleProps}
               className={`card${task.status === "done" ? " done" : ""}${snapshot.isDragging ? " dragging" : ""}`}
-              onClick={readOnly ? undefined : () => setEditing(true)}
-              title={readOnly ? undefined : "Click to edit"}
+              onClick={() => onOpen("view")}
+              title="Open task"
             >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
                 <p className="title" style={{ flex: 1 }}>
                   {task.title}
                 </p>
                 {!readOnly && (
-                  <button
-                    className="card-delete"
-                    aria-label={`Delete "${task.title}"`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                  >
-                    ×
-                  </button>
+                  <div className="card-menu">
+                    <button
+                      className="card-menu-btn"
+                      aria-label={`Actions for "${task.title}"`}
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen((v) => !v);
+                      }}
+                    >
+                      ⋯
+                    </button>
+                    {menuOpen && (
+                      <>
+                        <div
+                          className="menu-backdrop"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpen(false);
+                          }}
+                        />
+                        <div className="menu-pop" role="menu">
+                          <button type="button" role="menuitem" className="menu-item" onClick={pick("edit")}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item danger"
+                            onClick={pick("confirm")}
+                          >
+                            Delete…
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
               {task.notes && <p className="notes">{task.notes}</p>}
@@ -115,7 +108,7 @@ export function Card({ task, index, readOnly, onEdit, onDelete }: CardProps) {
                     ⚑ {formatDueDate(task.dueDate)}
                   </span>
                 )}
-                <span>{formatDate(task.createdAt)}</span>
+                <span>{formatShortDate(task.createdAt)}</span>
               </div>
             </div>
           </div>
