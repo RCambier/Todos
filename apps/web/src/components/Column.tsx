@@ -18,27 +18,15 @@ const STATUS_PILL_CLASS: Record<Status, string> = {
 interface ColumnProps {
   status: Status;
   tasks: Task[];
-  isTouch: boolean;
   readOnly: boolean;
   /** Attaches the mobile pager's panel ref to this column's root element. */
   panelRef: (el: HTMLDivElement | null) => void;
   onAdd: (input: NewTaskInput) => void;
-  onAdvance: (id: string, to: Status) => void;
   onEdit: (id: string, patch: { title: string; notes: string; dueDate: string; tags: string[] }) => void;
   onDelete: (id: string) => void;
 }
 
-export function Column({
-  status,
-  tasks,
-  isTouch,
-  readOnly,
-  panelRef,
-  onAdd,
-  onAdvance,
-  onEdit,
-  onDelete,
-}: ColumnProps) {
+export function Column({ status, tasks, readOnly, panelRef, onAdd, onEdit, onDelete }: ColumnProps) {
   const [composerOpen, setComposerOpen] = useState(false);
 
   return (
@@ -76,9 +64,7 @@ export function Column({
                 key={task.id}
                 task={task}
                 index={index}
-                isTouch={isTouch}
                 readOnly={readOnly}
-                onAdvance={(to) => onAdvance(task.id, to)}
                 onEdit={(patch) => onEdit(task.id, patch)}
                 onDelete={() => onDelete(task.id)}
               />

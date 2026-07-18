@@ -1,7 +1,6 @@
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { STATUSES, type Status, type Task } from "@memoria/sheet-core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useIsTouch } from "../lib/useIsTouch.js";
 import { Column } from "./Column.js";
 import type { NewTaskInput } from "./Composer.js";
 
@@ -14,15 +13,6 @@ const STATUS_LABEL: Record<Status, string> = {
 /** The panel shown by default on mobile load — the column most people care about day to day. */
 const DEFAULT_MOBILE_STATUS: Status = "in_progress";
 
-/** How long the undo toast lingers after a swipe commit (design 2a). */
-const TOAST_MS = 5000;
-
-interface Toast {
-  taskId: string;
-  from: Status;
-  to: Status;
-}
-
 interface BoardProps {
   tasks: Task[];
   readOnly: boolean;
@@ -33,10 +23,10 @@ interface BoardProps {
 }
 
 export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: BoardProps) {
-  const isTouch = useIsTouch();
   const [activeMobileStatus, setActiveMobileStatus] = useState<Status>(DEFAULT_MOBILE_STATUS);
-  const [toast, setToast] = useState<Toast | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // While a card is mid-drag the pager's scroll snapping is suspended so the
+  // library's edge auto-scroll can carry the card to a neighboring column.
+  const [cardDragging, setCardDragging] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<Partial<Record<Status, HTMLDivElement>>>({});
 
@@ -74,13 +64,6 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
     return () => board.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    },
-    [],
-  );
-
   function goToPanel(status: Status): void {
     setActiveMobileStatus(status);
     const board = boardRef.current;
@@ -88,28 +71,30 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
     if (board && panel) board.scrollTo({ left: panel.offsetLeft - 20, behavior: "smooth" });
   }
 
+  /** After a drag's auto-scroll leaves the pager between snap points, settle on the nearest panel. */
+  function settlePager(): void {
+    const board = boardRef.current;
+    // Desktop: the .board element isn't the scroll container, so nothing to settle.
+    if (!board || board.scrollWidth <= board.clientWidth) return;
+    const page = board.clientWidth * 0.85 || 1;
+    const index = Math.min(STATUSES.length - 1, Math.max(0, Math.round(board.scrollLeft / page)));
+    const status = STATUSES[index];
+    if (status) goToPanel(status);
+  }
+
+  function handleDragStart(): void {
+    setCardDragging(true);
+  }
+
   function handleDragEnd(result: DropResult): void {
+    setCardDragging(false);
+    settlePager();
     if (readOnly) return;
     const { draggableId, source, destination } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     onMove(draggableId, destination.droppableId as Status, destination.index);
-  }
-
-  /** Swipe commit: move now (optimistic + one-row write), hold an undo toast for 5s. */
-  function handleAdvance(id: string, from: Status, to: Status): void {
-    onMove(id, to, 0);
-    setToast({ taskId: id, from, to });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
-  }
-
-  function handleUndo(): void {
-    if (!toast) return;
-    onMove(toast.taskId, toast.from, 0);
-    setToast(null);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
   }
 
   return (
@@ -126,8 +111,8 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
           </button>
         ))}
       </div>
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="board" ref={boardRef}>
+      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className={`board${cardDragging ? " snap-off" : ""}`} ref={boardRef}>
           {STATUSES.map((status) => (
             <Column
               key={status}
@@ -136,11 +121,9 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
               }}
               status={status}
               tasks={byStatus[status]}
-              isTouch={isTouch}
               readOnly={readOnly}
               onAdd={(input) => onAdd(status, input)}
               onEdit={onEdit}
-              onAdvance={(id, to) => handleAdvance(id, status, to)}
               onDelete={onDelete}
             />
           ))}
@@ -151,17 +134,6 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
           <span key={status} className={status === activeMobileStatus ? "dot active" : "dot"} />
         ))}
       </div>
-      {toast && (
-        <div className="toast" role="status">
-          <span className="toast-check" aria-hidden="true">
-            ✓
-          </span>
-          <span>Moved to {STATUS_LABEL[toast.to]}</span>
-          <button type="button" className="toast-undo" onClick={handleUndo}>
-            Undo
-          </button>
-        </div>
-      )}
     </div>
   );
 }
