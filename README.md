@@ -32,8 +32,8 @@ credentials, your own Vercel deploy).
 **Connecting your agents?** Every deployment serves an MCP connector at
 `https://<deployment>/api/mcp`: add it in claude.ai (Settings →
 Connectors) or Claude Code (`claude mcp add --transport http …`), sign in
-with Google, and your agent gets the six board tools against your own
-board — nothing to install, and it works in scheduled and cloud routines
+with Google, and your agent gets the board tools against your own
+boards — nothing to install, and it works in scheduled and cloud routines
 too. The app's **Connect from agents** panel walks you through it; see
 [docs/SETUP.md](docs/SETUP.md#8-enable-the-mcp-connector-5-min) for the
 three env vars that switch it on for a fork.
@@ -65,7 +65,7 @@ docs/                  Architecture, setup guide, design mockup
 - **`apps/web`** talks to Google Sheets/Drive directly via `fetch` using an
   OAuth token scoped to `drive.file` (it can only see files it created or
   you explicitly picked).
-- **`packages/mcp-server`** defines the six tools (`list_tasks`,
+- **`packages/mcp-server`** defines the tools (`list_boards`, `list_tasks`,
   `add_task`, `update_task`, `move_task`, `complete_task`, `delete_task`),
   transport-free; the Vercel function in `apps/web/api` serves them as a
   remote MCP connector authenticated with each caller's own Google account.

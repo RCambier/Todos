@@ -1,5 +1,5 @@
 import { APP_PROPERTY_KEY, APP_PROPERTY_VALUE } from "@memoria/sheet-core";
-import type { SheetStore } from "@memoria/mcp-server";
+import type { BoardCatalog, BoardInfo, SheetStore } from "@memoria/mcp-server";
 import { authedJson } from "../../src/api/http.js";
 import {
   appendRow as appendSheetRow,
@@ -11,87 +11,80 @@ import {
 /**
  * Both REST helper modules above (`apps/web/src/api/http.ts`, `sheets.ts`) are already plain
  * `fetch` wrappers with no browser-specific globals — the same code the web app uses to talk to
- * Sheets is reused here verbatim rather than duplicated. Only the board-*discovery* query below is
- * new: the web app's own `findBoards` (src/api/drive.ts) returns every board unordered for a
- * reconnect picker, but a stateless MCP call needs exactly one board with no user present to ask —
- * "most recently modified", per docs/ARCHITECTURE.md.
+ * Sheets is reused here verbatim rather than duplicated. Only the board-*listing* query below is
+ * new: the web app's own `findBoards` (src/api/drive.ts) fetches ids and names for a reconnect
+ * picker, while the catalog also needs `modifiedTime` so an agent can tell boards apart.
  */
 
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const SPREADSHEET_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
 
 interface DriveFilesListResponse {
-  files?: { id: string }[];
+  files?: { id: string; name: string; modifiedTime: string }[];
 }
 
 /**
- * Finds the id of the most recently modified Todos board the token's `drive.file` grant can see, or
- * `undefined` if there isn't one. Exported standalone (rather than only as a private method below)
- * so the Drive response-mapping logic is unit-testable without going through the full `SheetStore`.
+ * Lists every tagged board the token's `drive.file` grant can see, newest-modified first.
+ * Exported standalone (rather than only as a private method below) so the Drive response-mapping
+ * logic is unit-testable without going through the full catalog.
  */
-export async function findMostRecentBoardId(token: string): Promise<string | undefined> {
+export async function findBoards(token: string): Promise<BoardInfo[]> {
   const q =
     `mimeType='${SPREADSHEET_MIME_TYPE}' and trashed=false and ` +
     `appProperties has { key='${APP_PROPERTY_KEY}' and value='${APP_PROPERTY_VALUE}' }`;
   const params = new URLSearchParams({
     q,
     orderBy: "modifiedTime desc",
-    pageSize: "1",
-    fields: "files(id)",
+    pageSize: "50",
+    fields: "files(id,name,modifiedTime)",
     spaces: "drive",
   });
   const data = await authedJson<DriveFilesListResponse>(token, `${DRIVE_FILES_URL}?${params.toString()}`);
-  return data.files?.[0]?.id;
+  return (data.files ?? []).map(({ id, name, modifiedTime }) => ({ id, name, modifiedTime }));
 }
 
-/**
- * No board was found for this account. The message is written for the agent to relay to the
- * person it's working for — the fix is on the web app, not this connector.
- */
-export class NoBoardError extends Error {
-  constructor() {
-    super(
-      "No Todos board was found in this Google account's Drive. Open the web app, sign in with the " +
-        "same Google account used to add this connector, and create (or reconnect) a board — then " +
-        "this connector will be able to find it.",
-    );
-    this.name = "NoBoardError";
-  }
-}
-
-/**
- * Adapts the caller's own OAuth token into the `SheetStore` contract `registerTools` (from
- * `@memoria/mcp-server`) expects. One instance per request: board discovery runs at most once (on
- * first use) and its result is cached for the rest of that request's tool calls.
- */
+/** Adapts the caller's own OAuth token into a `SheetStore` bound to one spreadsheet. */
 export class RemoteSheetStore implements SheetStore {
-  private spreadsheetIdPromise: Promise<string> | undefined;
-
-  constructor(private readonly token: string) {}
-
-  private spreadsheetId(): Promise<string> {
-    if (!this.spreadsheetIdPromise) {
-      this.spreadsheetIdPromise = findMostRecentBoardId(this.token).then((id) => {
-        if (!id) throw new NoBoardError();
-        return id;
-      });
-    }
-    return this.spreadsheetIdPromise;
-  }
+  constructor(
+    private readonly token: string,
+    private readonly spreadsheetId: string,
+  ) {}
 
   async readRows(): Promise<string[][]> {
-    return getValues(this.token, await this.spreadsheetId());
+    return getValues(this.token, this.spreadsheetId);
   }
 
   async appendRow(row: string[]): Promise<void> {
-    await appendSheetRow(this.token, await this.spreadsheetId(), row);
+    await appendSheetRow(this.token, this.spreadsheetId, row);
   }
 
   async updateRow(rowNumber: number, row: string[]): Promise<void> {
-    await updateSheetRow(this.token, await this.spreadsheetId(), rowNumber, row);
+    await updateSheetRow(this.token, this.spreadsheetId, rowNumber, row);
   }
 
   async deleteRow(rowNumber: number): Promise<void> {
-    await deleteSheetRow(this.token, await this.spreadsheetId(), rowNumber);
+    await deleteSheetRow(this.token, this.spreadsheetId, rowNumber);
+  }
+}
+
+/**
+ * The caller's boards, as `registerTools` (from `@memoria/mcp-server`) expects them. One instance
+ * per request: the Drive listing runs at most once (on first use) and is cached for the rest of
+ * that request's tool calls — and not at all when every call names its `board_id`.
+ */
+export class RemoteBoardCatalog implements BoardCatalog {
+  private boardsPromise: Promise<BoardInfo[]> | undefined;
+
+  constructor(private readonly token: string) {}
+
+  listBoards(): Promise<BoardInfo[]> {
+    if (!this.boardsPromise) {
+      this.boardsPromise = findBoards(this.token);
+    }
+    return this.boardsPromise;
+  }
+
+  openBoard(id: string): SheetStore {
+    return new RemoteSheetStore(this.token, id);
   }
 }

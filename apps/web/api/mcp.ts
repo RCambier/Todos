@@ -3,13 +3,14 @@ import { registerTools } from "@memoria/mcp-server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { loadConfig, unconfiguredResponse } from "./_lib/config.js";
 import { DRIVE_FILE_SCOPE, fetchGoogleTokenInfo } from "./_lib/google.js";
-import { RemoteSheetStore } from "./_lib/sheetStore.js";
+import { RemoteBoardCatalog } from "./_lib/sheetStore.js";
 
 /**
- * The hosted MCP endpoint: same six board tools as the local stdio server (`@memoria/mcp-server`,
- * imported from its transport-free entrypoint), operating on whichever board is discovered for the
- * caller's own Google account. Authenticated per-request by the caller's Google access token —
- * there is no session, no server-side credential store, nothing to leak.
+ * The hosted MCP endpoint: the board tools from `@memoria/mcp-server` (imported from its
+ * transport-free entrypoint), operating on the caller's own boards — listed via `list_boards`,
+ * targeted per call by `board_id` (optional while the account has a single board). Authenticated
+ * per-request by the caller's Google access token — there is no session, no server-side
+ * credential store, nothing to leak.
  */
 
 /** Verifies a caller's bearer token directly against Google (no local session/token store). */
@@ -27,16 +28,16 @@ async function verifyToken(_request: Request, bearerToken?: string): Promise<Aut
   return { token: bearerToken, scopes, clientId: String(info.aud) };
 }
 
-/** Builds a fresh MCP server per request, bound to that request's caller via `RemoteSheetStore`. */
+/** Builds a fresh MCP server per request, bound to that request's caller via `RemoteBoardCatalog`. */
 async function mcpHandler(request: Request): Promise<Response> {
   // withMcpAuth (below) only calls this once verifyToken has already succeeded with `required:
   // true`, so `request.auth` is always set here — this check is just satisfying the type.
   const token = request.auth?.token;
   if (!token) return new Response("Unauthorized", { status: 401 });
 
-  const store = new RemoteSheetStore(token);
+  const catalog = new RemoteBoardCatalog(token);
   const perRequestHandler = createMcpHandler(
-    (server) => registerTools(server, store),
+    (server) => registerTools(server, catalog),
     { serverInfo: { name: "memoria-mcp-server", version: "0.1.0" } },
     { basePath: "/api" },
   );

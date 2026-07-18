@@ -111,29 +111,39 @@ Used by both other packages. Exports:
 
 ### `packages/mcp-server` — the board tools
 
-Node + TypeScript, transport-free: it defines the six MCP tools and the
-`SheetStore` interface they run against, and nothing else. The hosted
-connector (next section) mounts them over Streamable HTTP; tests run them
-against an in-memory fake.
+Node + TypeScript, transport-free: it defines the MCP tools and the two
+interfaces they run against — `SheetStore` (one board's rows) and
+`BoardCatalog` (which boards exist, and a `SheetStore` for any of them) —
+and nothing else. The hosted connector (next section) mounts them over
+Streamable HTTP; tests run them against in-memory fakes.
+
+Every task tool takes an optional `board_id` (from `list_boards`), resolved
+by one shared rule (`resolveBoard`): an explicit `board_id` wins and skips
+board listing entirely; otherwise a lone board is used, no board is an
+error telling the user to create one, and several boards is an error naming
+them — never a silent guess. Accounts with a single board can omit
+`board_id` everywhere.
 
 Tools (all mutations take a task `id` from `list_tasks`; every write
 re-locates the row by ID first, exactly like the web app):
 
-| tool            | input                                                                       | behavior                     |
-| --------------- | --------------------------------------------------------------------------- | ---------------------------- |
-| `list_tasks`    | optional `status` filter                                                    | tasks in board order         |
-| `add_task`      | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column      |
-| `update_task`   | `id`, optional `title`, `notes`, `due_date`, `tags`                         | edit fields                  |
-| `move_task`     | `id`, `status`                                                              | move to top of target column |
-| `complete_task` | `id`                                                                        | sugar for `move_task(done)`  |
-| `delete_task`   | `id`                                                                        | delete that row              |
+| tool            | input                                                                       | behavior                       |
+| --------------- | --------------------------------------------------------------------------- | ------------------------------ |
+| `list_boards`   | —                                                                           | boards (id, name, modified)    |
+| `list_tasks`    | optional `status` filter                                                    | tasks in board order           |
+| `add_task`      | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column        |
+| `update_task`   | `id`, optional `title`, `notes`, `due_date`, `tags`                         | edit fields                    |
+| `move_task`     | `id`, `status`                                                              | move to top of target column   |
+| `complete_task` | `id`                                                                        | sugar for `move_task(done)`    |
+| `delete_task`   | `id`                                                                        | delete that row                |
 
 No bulk or whole-sheet tools — a confused agent can damage at most one row,
 and Sheets version history covers recovery. Tasks created via MCP set
 `source = "agent"` (see schema) so the UI can show provenance.
 
 The package's single entrypoint exports `registerTools` and the
-`SheetStore` interface — no HTTP, no filesystem access, no Google client.
+`SheetStore` / `BoardCatalog` contracts — no HTTP, no filesystem access, no
+Google client.
 Board logic stays testable and transport-agnostic; transports live with
 their hosts.
 
@@ -141,7 +151,7 @@ their hosts.
 
 Vercel Functions deployed alongside the static build, so any user of a
 deployed instance can add `https://<deployment>/api/mcp` as a claude.ai
-custom connector and get the same six tools operating on **their** board in
+custom connector and get the same tools operating on **their** boards in
 **their** Drive. The same functions also back the web app's persistent
 sign-in (`/api/auth/*`, described under *apps/web* above). It is opt-in per
 deployment: it activates only when three env vars are set (below); a fork
@@ -171,10 +181,11 @@ that proxies Google:
   proxied straight through.
 - Every `/api/mcp` request is authenticated by validating the caller's
   bearer token against Google's tokeninfo endpoint (scope + audience
-  checked); the board is discovered per request as the caller's most
-  recently modified tagged spreadsheet. All Sheets/Drive calls use the
-  caller's own token — the deployment can never touch a board without the
-  caller's live Google credential in hand.
+  checked); the caller's boards are listed per request from Drive (tagged
+  spreadsheets, at most one listing per request) and each tool call
+  targets its `board_id` — or the account's only board when omitted. All
+  Sheets/Drive calls use the caller's own token — the deployment can never
+  touch a board without the caller's live Google credential in hand.
 
 Env vars (all three required to activate, set in Vercel project settings):
 `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (a second,
@@ -243,7 +254,7 @@ acceptable, and version history exists.
 apps/web              React + TS + Vite SPA (@hello-pangea/dnd for drag & drop)
 apps/web/api          optional hosted MCP connector (Vercel Functions, mcp-handler)
 packages/sheet-core   shared schema/validation (no runtime deps)
-packages/mcp-server   the six MCP board tools, transport-free (@modelcontextprotocol/sdk)
+packages/mcp-server   the MCP board tools, transport-free (@modelcontextprotocol/sdk)
 docs/                 this file, SETUP.md, design/
 ```
 

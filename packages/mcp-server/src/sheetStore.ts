@@ -1,9 +1,9 @@
 /**
  * The narrow surface `board.ts` (and the tools built on it) need from a
- * sheet backend. Transport-free by design — no `googleapis`, no `fetch`,
- * nothing that assumes how the caller authenticates. This is what lets
- * `registerTools` be reused by both the local stdio server (`SheetsClient`,
- * a service-account-authenticated `googleapis` wrapper) and the hosted
+ * sheet backend, always bound to a single board — which board is the
+ * `BoardCatalog`'s job (see `catalog.ts`). Transport-free by design — no
+ * `googleapis`, no `fetch`, nothing that assumes how the caller
+ * authenticates. This is what lets `registerTools` run against the hosted
  * Vercel MCP endpoint (a plain-`fetch` wrapper authenticated with the
  * caller's own Google OAuth token — see `apps/web/api/_lib/sheetStore.ts`).
  *

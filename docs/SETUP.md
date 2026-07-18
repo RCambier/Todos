@@ -96,7 +96,7 @@ refresh.
 This one section powers two things:
 
 - **Agents**: your deployment serves a standard remote MCP server at
-  `/api/mcp` — the six board tools, authenticated per-request with each
+  `/api/mcp` — the board tools, authenticated per-request with each
   user's own Google account (no credentials stored anywhere, no
   per-machine install). It works from claude.ai (including scheduled/cloud
   routines), Claude Code, and any MCP client speaking Streamable HTTP with
@@ -136,8 +136,10 @@ This one section powers two things:
 
 The connector URL is `https://<your-deployment>/api/mcp` — the app's
 **Connect from agents** panel shows it with a copy button and these same
-instructions. Sign in with the Google account whose Drive holds your board;
-the connector operates on that account's most recently modified board.
+instructions. Sign in with the Google account whose Drive holds your
+board(s); the connector lists that account's boards (`list_boards`) and
+each tool call can target one by `board_id` — with a single board, the
+board can be omitted everywhere.
 
 - **claude.ai** (chats, projects, scheduled routines): Settings →
   Connectors → **Add custom connector** → paste the URL → approve the
@@ -154,7 +156,7 @@ the connector operates on that account's most recently modified board.
   MCP server (Streamable HTTP); the client's own OAuth flow handles
   sign-in.
 
-Ask your agent to list, add, or move tasks — it's using the six tools
+Ask your agent to list, add, or move tasks — it's using the tools
 described in `docs/ARCHITECTURE.md`.
 
 To revoke a connector's access later, remove the app under
