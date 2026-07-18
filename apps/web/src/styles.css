@@ -141,11 +141,24 @@ input {
   padding: 12px 20px;
   border-bottom: 1px solid var(--line);
 }
+/* A button since the logo is the way back to the board shelf. */
 .wordmark {
   display: flex;
   align-items: center;
   gap: 9px;
   flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 2px 6px 2px 2px;
+  margin: -2px 0 -2px -2px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.wordmark:hover {
+  background: var(--bg-subtle);
 }
 /* The logo SVG (components/Logo.tsx) draws its own disc; this just sizes the slot. */
 .wordmark-glyph {
@@ -1460,7 +1473,7 @@ kbd {
 
 @media (max-width: 720px) {
   .topbar {
-    gap: 8px;
+    gap: 4px;
     padding: 14px 16px 10px;
   }
   .top-link-label,
@@ -1468,19 +1481,50 @@ kbd {
     display: none;
   }
   .top-link {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 38px;
+    min-height: 38px;
     justify-content: center;
     padding: 8px;
   }
-  /* 2a header: just the board name + sync dot; wordmark and tabs are desktop chrome */
-  .wordmark,
-  .board-tabs {
+  /* 2a header: logo (→ board shelf) + board name; the tabs are desktop chrome. */
+  .board-tabs,
+  .wordmark-name {
     display: none;
+  }
+  .wordmark {
+    min-width: 38px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
   }
   .mobile-board-name {
     display: block;
     flex: 1;
+  }
+  /* The right-side cluster reads as one row of equal 38px cells: sync dot,
+     sheet link, agents, account. */
+  .sync {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .sync .dot {
+    width: 9px;
+    height: 9px;
+  }
+  .account-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .account {
+    margin-left: 0;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
   }
 
   .board-scroll {

@@ -149,14 +149,21 @@ export function Topbar({
 
   return (
     <div className="topbar">
-      <div className="wordmark">
+      {/* The logo is the "home" affordance: tap → the board shelf (all boards). */}
+      <button
+        type="button"
+        className="wordmark"
+        onClick={onSwitchBoard}
+        aria-label="View all boards"
+        title="View all boards"
+      >
         <span className="wordmark-glyph" aria-hidden="true">
           <Logo size={24} />
         </span>
         <span className="wordmark-name">
           Memor<span className="wordmark-ia">ia</span>
         </span>
-      </div>
+      </button>
 
       {/* One tab per board this account can see; + opens the board shelf. */}
       <div className="board-tabs" role="tablist" aria-label="Boards">
