@@ -1,7 +1,7 @@
 import { Draggable } from "@hello-pangea/dnd";
 import type { Task } from "@memoria/sheet-core";
 import { useState } from "react";
-import { formatDueDate, formatShortDate, isOverdue } from "../lib/dates.js";
+import { formatDueDate, isOverdue } from "../lib/dates.js";
 import { tagColorClass } from "../lib/tagColor.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
 
@@ -12,9 +12,11 @@ interface CardProps {
   readOnly: boolean;
   /** Opens the task detail dialog: click → view, menu → edit / confirm delete. */
   onOpen: (mode: TaskDetailMode) => void;
+  /** Marks the task done (moves it to the top of the Done column). */
+  onComplete: () => void;
 }
 
-export function Card({ task, index, readOnly, onOpen }: CardProps) {
+export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   function pick(mode: TaskDetailMode): (e: React.MouseEvent) => void {
@@ -74,6 +76,20 @@ export function Card({ task, index, readOnly, onOpen }: CardProps) {
                           }}
                         />
                         <div className="menu-pop" role="menu">
+                          {task.status !== "done" && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="menu-item"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpen(false);
+                                onComplete();
+                              }}
+                            >
+                              Done
+                            </button>
+                          )}
                           <button type="button" role="menuitem" className="menu-item" onClick={pick("edit")}>
                             Edit
                           </button>
@@ -101,15 +117,16 @@ export function Card({ task, index, readOnly, onOpen }: CardProps) {
                   ))}
                 </div>
               )}
-              <div className="meta">
-                {task.source === "agent" && <span className="chip">✳ agent</span>}
-                {task.dueDate && (
+              {/* Meta line = due date only. No created date (noise on a board), and
+                  no agent chip (provenance lives in the detail dialog). No due date
+                  → no meta line at all. */}
+              {task.dueDate && (
+                <div className="meta">
                   <span className={`due${isOverdue(task) ? " overdue" : ""}`} title={`Due ${task.dueDate}`}>
                     ⚑ {formatDueDate(task.dueDate)}
                   </span>
-                )}
-                <span>{formatShortDate(task.createdAt)}</span>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         );

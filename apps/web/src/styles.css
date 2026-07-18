@@ -720,6 +720,10 @@ button:focus-visible {
   font-size: 12.5px;
   white-space: nowrap;
 }
+/* Generic flex gap-filler for action rows (composer, detail dialog). */
+.flex-spacer {
+  flex: 1;
+}
 kbd {
   font-family: inherit;
   font-size: 10.5px;
@@ -780,77 +784,211 @@ kbd {
   text-decoration: underline;
 }
 
-/* ---------- welcome (logged out) ---------- */
+/* ---------- welcome (logged out) — design 3d "Connect" ---------- */
 .welcome {
-  max-width: 560px;
+  max-width: 640px;
   margin: 0 auto;
   min-height: 100%;
-  padding: 9vh 24px 48px;
+  padding: 10vh 24px 48px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 28px;
   text-align: center;
 }
-.welcome-glyph {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
-.welcome h1 {
-  font-size: 30px;
+.welcome-wordmark {
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  margin: -8px 0 0;
 }
-.welcome-tagline {
-  color: var(--ink-muted);
-  font-size: 16px;
-  margin: -16px 0 0;
-  max-width: 42ch;
+/* Design 4d, first card: at hero size the "ia" carries the AI in green
+   (#4C9A66 = --status-done-dot), not the topbar's quiet italic. */
+.welcome-wordmark .wordmark-ia {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--status-done-dot);
 }
-.welcome-features {
+.welcome-headline {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin: 8px 0 0;
+}
+/* The one action on the page wears Drive's green, not the app accent. */
+.btn-drive {
   display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.feature-card {
-  width: 170px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-.feature-icon {
-  font-size: 16px;
-}
-.feature-title {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.feature-desc {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-muted);
-}
-/* Scoped under .welcome so it outranks .btn-primary's own align-self, which
-   is declared later in this file. */
-.welcome .btn-hero {
-  align-self: center;
-  padding: 13px 28px;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #188038, #4c9a66);
+  color: #fff;
   font-size: 15px;
-  border-radius: 10px;
+  font-weight: 600;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(24, 128, 56, 0.3);
+  cursor: pointer;
+}
+.btn-drive:hover {
+  filter: brightness(1.06);
 }
 .welcome-fineprint {
   color: var(--ink-faint);
-  font-size: 11.5px;
+  font-size: 12.5px;
   margin: -16px 0 0;
   max-width: 44ch;
+}
+
+/* The layer diagram: sheet in back, cards floating, cursors on top. */
+.hero-scene {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  height: 280px;
+  margin-top: 20px;
+}
+.hero-sheet {
+  position: absolute;
+  inset: 0;
+  background: var(--card-done-bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.hero-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+/* Row/column rules and the tinted header column, drawn with gradients so the
+   grid stretches to any width without per-cell markup. */
+.hero-sheet-grid {
+  position: absolute;
+  inset: 34px 0 0;
+  opacity: 0.55;
+  background-image:
+    linear-gradient(90deg, var(--bg-subtle) 32px, transparent 32px),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 26px,
+    25% 100%;
+  background-position:
+    0 0,
+    0 0,
+    32px 0;
+}
+.hero-card {
+  position: absolute;
+  width: 200px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.13);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.hero-card-todos {
+  left: 10%;
+  top: 76px;
+  transform: rotate(-2deg);
+}
+.hero-card-notes {
+  right: 10%;
+  top: 56px;
+  transform: rotate(1.8deg);
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+}
+.hero-card-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+.hero-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hero-todo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hero-checkbox {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1.5px solid var(--line-strong);
+  flex-shrink: 0;
+}
+.hero-checkbox.done {
+  border: none;
+  background: var(--status-done-dot);
+  color: #fff;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  flex: 1;
+}
+.hero-bar.faint {
+  opacity: 0.6;
+}
+.hero-bar.note {
+  background: var(--warn-line);
+  opacity: 0.55;
+  flex: none;
+}
+.hero-cursor {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.hero-cursor span {
+  border-radius: 4px 10px 10px 10px;
+  padding: 3px 9px;
+  margin: -1px 0 0 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hero-cursor-claude {
+  left: 38%;
+  top: 158px;
+}
+.hero-cursor-claude span {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.hero-cursor-agent {
+  right: 14%;
+  top: 132px;
+}
+.hero-cursor-agent span {
+  background: var(--warn);
+  color: #fff;
 }
 
 /* ---------- first run ---------- */
@@ -964,6 +1102,21 @@ kbd {
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+.board-name-form {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.board-name-form input {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 13px;
+  background: var(--card);
+  color: var(--ink);
+  width: 200px;
 }
 .btn-ghost {
   background: var(--card);
@@ -1181,9 +1334,6 @@ kbd {
   gap: 12px;
   animation: detail-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.05);
 }
-.detail-grabber {
-  display: none;
-}
 .detail-head {
   display: flex;
   align-items: center;
@@ -1191,16 +1341,18 @@ kbd {
 .detail-close {
   margin-left: auto;
   border: none;
-  background: transparent;
-  color: var(--ink-faint);
-  font-size: 18px;
-  line-height: 1;
+  background: var(--bg-subtle);
+  color: var(--ink-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
   cursor: pointer;
-  padding: 4px 9px;
-  border-radius: 6px;
 }
 .detail-close:hover {
-  background: var(--bg-subtle);
+  background: var(--line);
   color: var(--ink);
 }
 .detail-title {
@@ -1453,23 +1605,45 @@ kbd {
     padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
     animation: detail-rise 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
   }
-  .detail-grabber {
-    display: block;
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--line-strong);
-    margin: 0 auto 4px;
-  }
   .detail-close {
-    min-width: 40px;
-    min-height: 40px;
+    width: 36px;
+    height: 36px;
   }
   .composer input,
   .composer textarea,
   .settings-panel input[type="text"],
   .settings-panel input[type="email"] {
     font-size: 16px;
+  }
+  /* The in-column composer becomes a full-screen capture surface on mobile
+     (design 2c). It is portaled to <body> (Column.tsx) — a fixed element
+     inside the board breaks on iOS once the keyboard opens — and the edit
+     form inside the task detail sheet keeps its inline size. */
+  .composer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overscroll-behavior: contain;
+  }
+  .composer-overlay .composer {
+    flex: 1;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .composer-overlay .composer-notes {
+    flex: 1;
+    min-height: 120px;
+  }
+  .composer-overlay .composer-actions {
+    margin-top: auto;
   }
   .composer-tags .tag-input,
   .composer-date {
@@ -1478,6 +1652,58 @@ kbd {
   .btn-sm {
     min-height: 40px;
     padding: 8px 14px;
+  }
+
+  /* Welcome, 3d mobile: tighter type, smaller floating cards, narrower grid. */
+  .welcome {
+    padding-top: 7vh;
+  }
+  .welcome-headline {
+    font-size: 26px;
+    line-height: 1.25;
+  }
+  .hero-scene {
+    height: 250px;
+  }
+  .hero-sheet-grid {
+    background-image:
+      linear-gradient(90deg, var(--bg-subtle) 28px, transparent 28px),
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      100% 26px,
+      33.4% 100%;
+    background-position:
+      0 0,
+      0 0,
+      28px 0;
+  }
+  .hero-card {
+    width: 150px;
+    padding: 15px 17px;
+  }
+  .hero-card-todos {
+    left: 5%;
+    top: 64px;
+  }
+  .hero-card-notes {
+    right: 5%;
+    top: 40px;
+  }
+  .hero-card-title {
+    font-size: 15px;
+  }
+  .hero-bar {
+    height: 6px;
+  }
+  .hero-cursor-claude {
+    left: 34%;
+    top: 130px;
+  }
+  .hero-cursor-agent {
+    right: 9%;
+    top: 106px;
   }
 }
 

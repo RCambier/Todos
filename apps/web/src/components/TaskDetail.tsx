@@ -24,6 +24,8 @@ interface TaskDetailProps {
   readOnly: boolean;
   onClose: () => void;
   onSave: (patch: { title: string; notes: string; dueDate: string; tags: string[] }) => void;
+  /** Marks the task done and closes the dialog. */
+  onComplete: () => void;
   onDelete: () => void;
 }
 
@@ -33,7 +35,15 @@ interface TaskDetailProps {
  * edit swaps in the shared TaskForm, and delete always passes through an
  * explicit confirm step.
  */
-export function TaskDetail({ task, initialMode, readOnly, onClose, onSave, onDelete }: TaskDetailProps) {
+export function TaskDetail({
+  task,
+  initialMode,
+  readOnly,
+  onClose,
+  onSave,
+  onComplete,
+  onDelete,
+}: TaskDetailProps) {
   const [mode, setMode] = useState<TaskDetailMode>(readOnly ? "view" : initialMode);
   const confirmRef = useRef<HTMLDivElement>(null);
 
@@ -84,14 +94,20 @@ export function TaskDetail({ task, initialMode, readOnly, onClose, onSave, onDel
         aria-label={task.title}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="detail-grabber" aria-hidden="true" />
         <div className="detail-head">
           <span className={`status-pill ${STATUS_PILL_CLASS[task.status]}`}>
             <span className="sdot" />
             {STATUS_LABEL[task.status]}
           </span>
           <button className="detail-close" aria-label="Close" onClick={onClose}>
-            ×
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path
+                d="M1.5 1.5 10.5 10.5M10.5 1.5 1.5 10.5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </div>
 
@@ -152,17 +168,26 @@ export function TaskDetail({ task, initialMode, readOnly, onClose, onSave, onDel
                 >
                   Delete…
                 </button>
-                <div className="composer-spacer" />
-                <button type="button" className="btn-primary btn-sm" onClick={() => setMode("edit")}>
+                <div className="flex-spacer" />
+                <button
+                  type="button"
+                  className={`${task.status === "done" ? "btn-primary" : "btn-ghost"} btn-sm`}
+                  onClick={() => setMode("edit")}
+                >
                   Edit
                 </button>
+                {task.status !== "done" && (
+                  <button type="button" className="btn-primary btn-sm" onClick={onComplete}>
+                    Done
+                  </button>
+                )}
               </div>
             )}
             {!readOnly && mode === "confirm" && (
               <div className="detail-confirm" role="alertdialog" aria-label="Confirm delete" ref={confirmRef}>
                 <p>Delete “{task.title}”? This can’t be undone.</p>
                 <div className="detail-actions">
-                  <div className="composer-spacer" />
+                  <div className="flex-spacer" />
                   <button type="button" className="btn-ghost btn-sm" onClick={() => setMode("view")}>
                     Cancel
                   </button>

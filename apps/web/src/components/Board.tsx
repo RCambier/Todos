@@ -131,6 +131,7 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
               readOnly={readOnly}
               onAdd={(input) => onAdd(status, input)}
               onOpen={(id, mode) => setDetail({ taskId: id, mode })}
+              onComplete={(id) => onMove(id, "done", 0)}
             />
           ))}
         </div>
@@ -147,6 +148,10 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
           readOnly={readOnly}
           onClose={() => setDetail(null)}
           onSave={(patch) => onEdit(detailTask.id, patch)}
+          onComplete={() => {
+            onMove(detailTask.id, "done", 0);
+            setDetail(null);
+          }}
           onDelete={() => {
             onDelete(detailTask.id);
             setDetail(null);
