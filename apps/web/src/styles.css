@@ -739,6 +739,10 @@ button:focus-visible {
 .flex-spacer {
   flex: 1;
 }
+/* Mobile-only floating add button; the mobile media block makes it visible. */
+.fab-add {
+  display: none;
+}
 kbd {
   font-family: inherit;
   font-size: 10.5px;
@@ -1001,13 +1005,20 @@ kbd {
 
 /* ---------- first run ---------- */
 .first-run {
-  max-width: 640px;
+  max-width: 440px;
   margin: 0 auto;
-  padding: 64px 24px;
+  padding: 56px 24px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
   text-align: center;
+}
+.first-run-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 .first-run h1 {
   font-size: 22px;
@@ -1028,40 +1039,43 @@ kbd {
   text-align: left;
 }
 .board-shelf {
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
   background: var(--card);
-  padding: 8px;
+  box-shadow: var(--card-shadow);
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
   text-align: left;
-  min-height: 104px;
 }
 .board-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   border: none;
   background: transparent;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 13px 12px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+}
+.board-row + .board-row {
+  border-top: 1px solid var(--line);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 .board-row:hover {
   background: var(--bg-subtle);
 }
 .board-row:hover .board-open {
-  opacity: 1;
+  color: var(--ink);
 }
 .board-row.skeleton {
-  height: 40px;
+  height: 46px;
   background: var(--bg-subtle);
   cursor: default;
 }
@@ -1073,9 +1087,8 @@ kbd {
   white-space: nowrap;
 }
 .board-open {
-  font-size: 12px;
-  color: var(--ink-muted);
-  opacity: 0;
+  font-size: 14px;
+  color: var(--ink-faint);
 }
 .sheet-glyph {
   width: 20px;
@@ -1560,13 +1573,29 @@ kbd {
     -webkit-user-select: none;
     user-select: none;
   }
+  /* The seg-switcher pills already name the columns and carry the counts —
+     the per-column heads are desktop chrome. Adding goes through the FAB. */
   .col-head {
-    padding: 6px 0 14px;
+    display: none;
   }
-  .col-head .add {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+  .fab-add {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    right: 20px;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font-size: 28px;
+    line-height: 1;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    z-index: 15;
+    -webkit-tap-highlight-color: transparent;
   }
   /* 2a chip pills: bordered, active = filled accent, counts inline */
   .seg-switcher {

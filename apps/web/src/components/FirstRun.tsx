@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { findBoards, type DriveFile } from "../api/drive.js";
 import { pickSpreadsheet } from "../api/picker.js";
 import { attachOrBootstrap, createBoard } from "../board/onboarding.js";
+import { Logo } from "./Logo.js";
 
 interface FirstRunProps {
   token: string;
@@ -77,6 +78,13 @@ export function FirstRun({ token, onBoardReady }: FirstRunProps) {
 
   return (
     <div className="first-run">
+      <div className="first-run-brand" aria-hidden="true">
+        <Logo size={26} />
+        <span className="wordmark-name">
+          Memor<span className="wordmark-ia">ia</span>
+        </span>
+      </div>
+
       <div>
         <h1>Your boards</h1>
         <p>Each board is a Google Sheet in your Drive.</p>

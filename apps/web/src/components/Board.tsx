@@ -1,8 +1,11 @@
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { STATUSES, type Status, type Task } from "@memoria/sheet-core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useIsMobile } from "../lib/useIsMobile.js";
+import { useVisualViewportHeight } from "../lib/useVisualViewportHeight.js";
 import { Column } from "./Column.js";
-import type { NewTaskInput } from "./Composer.js";
+import { Composer, type NewTaskInput } from "./Composer.js";
 import { TaskDetail, type TaskDetailMode } from "./TaskDetail.js";
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -31,6 +34,23 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
   // The open task detail dialog, if any. The task itself is looked up live so
   // edits (or a sync) refresh the dialog rather than showing stale data.
   const [detail, setDetail] = useState<{ taskId: string; mode: TaskDetailMode } | null>(null);
+  // Which column's composer is open, if any. Desktop renders it inline at the
+  // top of that column; mobile renders it as a full-screen overlay here —
+  // portaled to <body> (position:fixed inside the board breaks on iOS once
+  // the keyboard opens) and sized to the visual viewport so the action row
+  // rides above the keyboard. The page behind it is frozen while open.
+  const [composerStatus, setComposerStatus] = useState<Status | null>(null);
+  const isMobile = useIsMobile();
+  const mobileComposerOpen = composerStatus !== null && isMobile;
+  const overlayHeight = useVisualViewportHeight(mobileComposerOpen);
+  useEffect(() => {
+    if (!mobileComposerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileComposerOpen]);
   const boardRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<Partial<Record<Status, HTMLDivElement>>>({});
 
@@ -129,6 +149,9 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
               status={status}
               tasks={byStatus[status]}
               readOnly={readOnly}
+              composerOpen={composerStatus === status}
+              onOpenComposer={() => setComposerStatus(status)}
+              onCloseComposer={() => setComposerStatus(null)}
               onAdd={(input) => onAdd(status, input)}
               onOpen={(id, mode) => setDetail({ taskId: id, mode })}
               onComplete={(id) => onMove(id, "done", 0)}
@@ -141,6 +164,34 @@ export function Board({ tasks, readOnly, onAdd, onMove, onEdit, onDelete }: Boar
           <span key={status} className={status === activeMobileStatus ? "dot active" : "dot"} />
         ))}
       </div>
+      {/* Mobile-only floating add — targets the column currently on screen. */}
+      {!readOnly && (
+        <button
+          type="button"
+          className="fab-add"
+          aria-label={`Add task to ${STATUS_LABEL[activeMobileStatus]}`}
+          onClick={() => setComposerStatus(activeMobileStatus)}
+        >
+          +
+        </button>
+      )}
+      {composerStatus !== null &&
+        isMobile &&
+        createPortal(
+          <div
+            className="composer-overlay"
+            style={overlayHeight !== null ? { height: overlayHeight } : undefined}
+          >
+            <Composer
+              onSubmit={(input) => {
+                onAdd(composerStatus, input);
+                setComposerStatus(null);
+              }}
+              onCancel={() => setComposerStatus(null)}
+            />
+          </div>,
+          document.body,
+        )}
       {detailTask && detail && (
         <TaskDetail
           task={detailTask}

@@ -1,9 +1,6 @@
 import { Droppable } from "@hello-pangea/dnd";
 import type { Status, Task } from "@memoria/sheet-core";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useIsMobile } from "../lib/useIsMobile.js";
-import { useVisualViewportHeight } from "../lib/useVisualViewportHeight.js";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
@@ -25,6 +22,10 @@ interface ColumnProps {
   readOnly: boolean;
   /** Attaches the mobile pager's panel ref to this column's root element. */
   panelRef: (el: HTMLDivElement | null) => void;
+  /** Composer state lives in Board: on mobile it renders as Board's full-screen overlay. */
+  composerOpen: boolean;
+  onOpenComposer: () => void;
+  onCloseComposer: () => void;
   onAdd: (input: NewTaskInput) => void;
   /** Opens the task detail dialog for a card in this column. */
   onOpen: (id: string, mode: TaskDetailMode) => void;
@@ -32,39 +33,24 @@ interface ColumnProps {
   onComplete: (id: string) => void;
 }
 
-export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onComplete }: ColumnProps) {
-  const [composerOpen, setComposerOpen] = useState(false);
+export function Column({
+  status,
+  tasks,
+  readOnly,
+  panelRef,
+  composerOpen,
+  onOpenComposer,
+  onCloseComposer,
+  onAdd,
+  onOpen,
+  onComplete,
+}: ColumnProps) {
   const isMobile = useIsMobile();
-
-  // On mobile the composer is a full-screen overlay portaled to <body> —
-  // position:fixed inside the board breaks on iOS once the keyboard opens
-  // (Safari pans the page under the fixed element). Same pattern as the
-  // task detail sheet, including freezing the page behind it. The overlay is
-  // sized to the visual viewport so its bottom row (tags/date/buttons) rides
-  // on top of the keyboard instead of hiding behind it.
-  const mobileComposer = composerOpen && isMobile;
-  const overlayHeight = useVisualViewportHeight(mobileComposer);
-  useEffect(() => {
-    if (!mobileComposer) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mobileComposer]);
-
-  const composer = composerOpen ? (
-    <Composer
-      onSubmit={(input) => {
-        onAdd(input);
-        setComposerOpen(false);
-      }}
-      onCancel={() => setComposerOpen(false)}
-    />
-  ) : null;
 
   return (
     <div className="col" ref={panelRef} data-status={status}>
+      {/* Hidden on mobile — the seg-switcher pills already name the columns,
+          and the floating + (Board) replaces the per-column add. */}
       <div className="col-head">
         <span className={`status-pill ${STATUS_PILL_CLASS[status]}`}>
           <span className="sdot" />
@@ -72,11 +58,7 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onCom
         </span>
         <span className="count">{tasks.length}</span>
         {!readOnly && (
-          <button
-            className="add"
-            aria-label={`Add task to ${STATUS_LABEL[status]}`}
-            onClick={() => setComposerOpen(true)}
-          >
+          <button className="add" aria-label={`Add task to ${STATUS_LABEL[status]}`} onClick={onOpenComposer}>
             +
           </button>
         )}
@@ -84,18 +66,15 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onCom
       <Droppable droppableId={status}>
         {(provided) => (
           <div className="stack" ref={provided.innerRef} {...provided.droppableProps}>
-            {!isMobile && composer}
-            {isMobile &&
-              composer &&
-              createPortal(
-                <div
-                  className="composer-overlay"
-                  style={overlayHeight !== null ? { height: overlayHeight } : undefined}
-                >
-                  {composer}
-                </div>,
-                document.body,
-              )}
+            {composerOpen && !isMobile && (
+              <Composer
+                onSubmit={(input) => {
+                  onAdd(input);
+                  onCloseComposer();
+                }}
+                onCancel={onCloseComposer}
+              />
+            )}
             {tasks.map((task, index) => (
               <Card
                 key={task.id}
@@ -108,7 +87,7 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onCom
             ))}
             {provided.placeholder}
             {tasks.length === 0 && !composerOpen && !readOnly && (
-              <button className="ghost-add" onClick={() => setComposerOpen(true)}>
+              <button className="ghost-add" onClick={onOpenComposer}>
                 + New task
               </button>
             )}
