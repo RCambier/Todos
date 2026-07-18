@@ -3,6 +3,7 @@ import type { Status, Task } from "@memoria/sheet-core";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "../lib/useIsMobile.js";
+import { useVisualViewportHeight } from "../lib/useVisualViewportHeight.js";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
@@ -38,8 +39,11 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onCom
   // On mobile the composer is a full-screen overlay portaled to <body> —
   // position:fixed inside the board breaks on iOS once the keyboard opens
   // (Safari pans the page under the fixed element). Same pattern as the
-  // task detail sheet, including freezing the page behind it.
+  // task detail sheet, including freezing the page behind it. The overlay is
+  // sized to the visual viewport so its bottom row (tags/date/buttons) rides
+  // on top of the keyboard instead of hiding behind it.
   const mobileComposer = composerOpen && isMobile;
+  const overlayHeight = useVisualViewportHeight(mobileComposer);
   useEffect(() => {
     if (!mobileComposer) return;
     const prev = document.body.style.overflow;
@@ -83,7 +87,15 @@ export function Column({ status, tasks, readOnly, panelRef, onAdd, onOpen, onCom
             {!isMobile && composer}
             {isMobile &&
               composer &&
-              createPortal(<div className="composer-overlay">{composer}</div>, document.body)}
+              createPortal(
+                <div
+                  className="composer-overlay"
+                  style={overlayHeight !== null ? { height: overlayHeight } : undefined}
+                >
+                  {composer}
+                </div>,
+                document.body,
+              )}
             {tasks.map((task, index) => (
               <Card
                 key={task.id}
