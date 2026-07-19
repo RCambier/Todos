@@ -171,11 +171,20 @@ export function useBoard(token: string | null, spreadsheetId: string | null): Us
           }
         }
 
-        // Confirmed (or dropped) — remove it. State updates on the next
-        // render; update the ref eagerly so this loop sees the shorter queue.
-        const rest = localRef.current.outbox.slice(1);
-        localRef.current = { ...localRef.current, outbox: rest };
-        setOutbox(boardId, rest);
+        // Confirmed (or dropped) — commit the op into the local replica in
+        // the SAME update that removes it from the queue: popping alone
+        // would make the projection regress to the pre-write snapshot until
+        // the reconcile fetch lands (a visible flash of the old state).
+        // Applying a dropped op is harmless — applyPending skips ops whose
+        // target is gone. The ref updates eagerly so this loop sees the
+        // shorter queue; state follows on the next render.
+        const cur = localRef.current;
+        const rest = cur.outbox.slice(1);
+        const replica = cur.replica
+          ? { ...cur.replica, tasks: applyPending(cur.replica.tasks, [op]) }
+          : cur.replica;
+        localRef.current = { ...cur, outbox: rest, replica };
+        setLocal((l) => (l.boardId === boardId ? { ...l, outbox: rest, replica } : l));
       }
     } finally {
       flushing.current = false;
