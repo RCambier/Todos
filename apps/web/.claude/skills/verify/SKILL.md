@@ -43,3 +43,8 @@ grid) — assert on intercepted calls or optimistic state, not persistence.
 - Cross-column drag: hold the lifted card at the screen edge ~2s so dnd
   auto-scroll pages the board, then move back over the column body before
   releasing — releasing at the extreme edge lands outside the droppable.
+- Sync/local-first assertions: don't sample at checkpoints — regressions can
+  live in sub-500ms windows (e.g. the old flash-of-old-state between write
+  confirm and reconcile). Inject ~150ms latency into the stubbed fetch, then
+  poll the DOM every ~10ms asserting the expected state is NEVER absent for
+  the whole window.
