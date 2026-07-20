@@ -168,7 +168,7 @@ export function TaskDetail({
               className="btn-ghost btn-sm danger-text"
               onClick={() => setConfirming(true)}
             >
-              Delete…
+              Delete
             </button>
             <div className="flex-spacer" />
             {task.status !== "done" && (

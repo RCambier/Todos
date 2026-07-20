@@ -102,7 +102,7 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
                             className="menu-item danger"
                             onClick={pick("confirm")}
                           >
-                            Delete…
+                            Delete
                           </button>
                         </div>
                       </>

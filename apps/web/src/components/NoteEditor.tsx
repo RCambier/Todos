@@ -335,7 +335,7 @@ export function NoteEditor({
                   className="btn-ghost btn-sm danger-text"
                   onClick={() => setMode("confirm")}
                 >
-                  Delete…
+                  Delete
                 </button>
                 <div className="flex-spacer" />
                 <span className="note-edit-hint" aria-hidden="true">
