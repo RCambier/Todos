@@ -2089,10 +2089,51 @@ kbd {
   margin: 0;
 }
 
-/* The note dialog — shares .detail-overlay/.detail-panel with tasks. */
+/* The note dialog — shares .detail-overlay/.detail-panel with tasks, but
+   scrolls differently: a pinned header and footer with the body scrolling
+   between them, so the action bar never overlaps a tall image and the
+   rounded edges stay clean (no white flashes). */
 .note-panel {
   width: min(680px, 100%);
   max-height: min(88vh, 760px);
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+.note-panel .detail-head {
+  flex: 0 0 auto;
+  padding: 16px 22px 12px;
+}
+/* The scrolling middle — the only part that moves. */
+.note-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: text;
+}
+.note-panel .note-edit {
+  flex: 1;
+  min-height: 0;
+  padding: 0 22px 12px;
+}
+/* Pinned footer bar — a hairline above it separates it from the content. */
+.note-foot {
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 12px 22px 16px;
+  border-top: 1px solid var(--line);
+}
+.note-panel.agent .note-foot {
+  border-top-color: var(--note-agent-line);
+}
+.detail-confirm.note-foot {
+  border-top: none;
+  margin: 0 22px 16px;
 }
 .note-panel.agent {
   background: var(--note-agent-bg);
@@ -2101,6 +2142,12 @@ kbd {
 .note-panel.drag-over {
   outline: 2px dashed var(--status-done-dot);
   outline-offset: -6px;
+}
+/* Attached images sit with a soft edge and never dwarf the note. */
+.note-view-body .md-img {
+  border-radius: 10px;
+  max-height: 60vh;
+  object-fit: contain;
 }
 .note-head-meta {
   display: flex;
@@ -2313,7 +2360,12 @@ kbd {
     max-height: 100dvh;
     height: 100dvh;
     border-radius: 0;
-    padding-top: calc(10px + env(safe-area-inset-top));
+  }
+  .note-panel .detail-head {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  .note-foot {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
   .note-title-input,
   .note-body-input {

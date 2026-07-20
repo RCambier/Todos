@@ -238,33 +238,35 @@ export function NoteEditor({
         </div>
 
         {mode === "edit" ? (
-          <div className="note-edit">
-            <input
-              ref={titleRef}
-              className="note-title-input"
-              type="text"
-              placeholder="Title"
-              value={draftTitle}
-              aria-label="Note title"
-              onChange={(e) => setDraftTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  bodyRef.current?.focus();
-                }
-              }}
-            />
-            <textarea
-              ref={bodyRef}
-              className="note-body-input"
-              placeholder={"Write in markdown — paste or drag an image to attach it…"}
-              value={draftBody}
-              aria-label="Note body (markdown)"
-              onChange={(e) => setDraftBody(e.target.value)}
-              onPaste={handlePaste}
-            />
-            {uploadError && <p className="note-upload-error">{uploadError}</p>}
-            <div className="detail-actions">
+          <>
+            <div className="note-edit">
+              <input
+                ref={titleRef}
+                className="note-title-input"
+                type="text"
+                placeholder="Title"
+                value={draftTitle}
+                aria-label="Note title"
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    bodyRef.current?.focus();
+                  }
+                }}
+              />
+              <textarea
+                ref={bodyRef}
+                className="note-body-input"
+                placeholder={"Write in markdown — paste or drag an image to attach it…"}
+                value={draftBody}
+                aria-label="Note body (markdown)"
+                onChange={(e) => setDraftBody(e.target.value)}
+                onPaste={handlePaste}
+              />
+              {uploadError && <p className="note-upload-error">{uploadError}</p>}
+            </div>
+            <div className="detail-actions note-foot">
               <span className="note-md-hint" aria-hidden="true">
                 **bold** · # heading · - list · ![image]
               </span>
@@ -280,26 +282,28 @@ export function NoteEditor({
                 Done
               </button>
             </div>
-          </div>
+          </>
         ) : (
           <>
-            {draftTitle && <h2 className="note-view-title">{draftTitle}</h2>}
             <div
-              className="note-view-body"
+              className="note-scroll"
               onClick={() => {
                 if (!readOnly) setMode("edit");
               }}
               title={readOnly ? undefined : "Click to edit"}
             >
-              {draftBody.trim() !== "" ? (
-                <Markdown text={draftBody} token={token} />
-              ) : (
-                <p className="note-view-empty">{readOnly ? "Empty note." : "Click to write…"}</p>
-              )}
+              {draftTitle && <h2 className="note-view-title">{draftTitle}</h2>}
+              <div className="note-view-body">
+                {draftBody.trim() !== "" ? (
+                  <Markdown text={draftBody} token={token} />
+                ) : (
+                  <p className="note-view-empty">{readOnly ? "Empty note." : "Click to write…"}</p>
+                )}
+              </div>
             </div>
 
             {!readOnly && mode === "view" && (
-              <div className="detail-actions">
+              <div className="detail-actions note-foot">
                 <button
                   type="button"
                   className="btn-ghost btn-sm danger-text"
@@ -314,7 +318,7 @@ export function NoteEditor({
               </div>
             )}
             {!readOnly && mode === "confirm" && (
-              <div className="detail-confirm" role="alertdialog" aria-label="Confirm delete">
+              <div className="detail-confirm note-foot" role="alertdialog" aria-label="Confirm delete">
                 <p>Delete {note.title ? `“${note.title}”` : "this note"}? This can’t be undone.</p>
                 <div className="detail-actions">
                   <div className="flex-spacer" />
