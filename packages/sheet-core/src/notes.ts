@@ -1,7 +1,7 @@
 import { MalformedSheetError } from "./board.js";
+import { locateRowById, parseItemRows, type SheetError } from "./grid.js";
 import { generateId } from "./id.js";
-import type { SheetError } from "./parse.js";
-import { isBlankRow, RowValidationError } from "./serialize.js";
+import { RowValidationError } from "./serialize.js";
 import type { SheetRow, Source } from "./types.js";
 import type { SheetStore } from "./store.js";
 
@@ -127,39 +127,13 @@ export function parseNotesSheet(rows: readonly SheetRow[]): ParseNotesResult {
   const hErr = notesHeaderError(rows[0]);
   if (hErr) return { ok: false, error: hErr };
 
-  const notes: Note[] = [];
-  const idToRow = new Map<string, number>();
-
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i]!;
-    if (isBlankRow(row)) continue;
-
-    const rowNumber = i + 1;
-    try {
-      const note = rowToNote(row);
-      const firstSeenAt = idToRow.get(note.id);
-      if (firstSeenAt !== undefined) {
-        return {
-          ok: false,
-          error: {
-            row: rowNumber,
-            column: "id",
-            value: note.id,
-            message: `Row ${rowNumber}: id "${note.id}" is already used by row ${firstSeenAt} — ids must be unique.`,
-          },
-        };
-      }
-      idToRow.set(note.id, rowNumber);
-      notes.push(note);
-    } catch (err) {
-      if (err instanceof RowValidationError) {
-        return { ok: false, error: noteFieldError(rowNumber, err) };
-      }
-      throw err;
-    }
-  }
-
-  return { ok: true, notes };
+  const result = parseItemRows(rows, {
+    rowToItem: rowToNote,
+    idOf: (note) => note.id,
+    fieldError: noteFieldError,
+  });
+  if (!result.ok) return result;
+  return { ok: true, notes: result.items };
 }
 
 /** Grid display order: most recently edited first (ISO timestamps compare lexically). */
@@ -203,11 +177,11 @@ async function readValidNotes(store: SheetStore): Promise<{ notes: Note[]; rawRo
   return { notes: result.notes, rawRows };
 }
 
+/** Re-locates a note's row by id in the freshest read (see grid.ts), or throws. */
 function locateRow(rawRows: string[][], id: string): number {
-  for (let i = 1; i < rawRows.length; i++) {
-    if ((rawRows[i]?.[0] ?? "").trim() === id) return i + 1;
-  }
-  throw new NoteNotFoundError(id);
+  const rowNumber = locateRowById(rawRows, id);
+  if (rowNumber === null) throw new NoteNotFoundError(id);
+  return rowNumber;
 }
 
 export async function listNotes(store: SheetStore): Promise<Note[]> {

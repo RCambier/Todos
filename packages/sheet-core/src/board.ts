@@ -1,6 +1,7 @@
+import { locateRowById, type SheetError } from "./grid.js";
 import { generateId } from "./id.js";
 import { boardOrder, topSortOrder } from "./ordering.js";
-import { parseSheet, type ParseResult, type SheetError } from "./parse.js";
+import { parseSheet, type ParseResult } from "./parse.js";
 import { taskToRow } from "./serialize.js";
 import type { SheetStore } from "./store.js";
 import { STATUSES, type Source, type Status, type Task } from "./types.js";
@@ -48,16 +49,11 @@ async function readValidTasks(store: SheetStore): Promise<{ tasks: Task[]; rawRo
   return { tasks: result.tasks, rawRows };
 }
 
-/**
- * Locates a task's current spreadsheet row by scanning the freshest read.
- * Rows are never addressed by a remembered position — other clients may
- * have inserted or deleted rows since the last read.
- */
+/** Re-locates a task's row by id in the freshest read (see grid.ts), or throws. */
 function locateRow(rawRows: string[][], id: string): number {
-  for (let i = 1; i < rawRows.length; i++) {
-    if ((rawRows[i]?.[0] ?? "").trim() === id) return i + 1;
-  }
-  throw new TaskNotFoundError(id);
+  const rowNumber = locateRowById(rawRows, id);
+  if (rowNumber === null) throw new TaskNotFoundError(id);
+  return rowNumber;
 }
 
 export interface NewTaskInput {

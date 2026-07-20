@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as board from "@memoria/sheet-core";
-import { STATUSES, type Task } from "@memoria/sheet-core";
+import { STATUSES, type Note, type Task } from "@memoria/sheet-core";
 import { z } from "zod";
-import { resolveBoard, type BoardCatalog } from "./catalog.js";
+import { resolveBoard, resolveNotes, type MemoriaCatalog } from "./catalog.js";
 
 const statusSchema = z.enum(STATUSES);
 
@@ -31,8 +31,21 @@ const tagsSchema = z
   .optional()
   .describe("Labels for the task; replaces the existing set when provided.");
 
+const notesIdSchema = z
+  .string()
+  .min(1)
+  .optional()
+  .describe(
+    "Which notes collection to operate on — an id from list_note_collections. Optional when " +
+      "the account has exactly one notes collection.",
+  );
+
 function taskText(task: Task): string {
   return JSON.stringify(task, null, 2);
+}
+
+function noteText(note: Note): string {
+  return JSON.stringify(note, null, 2);
 }
 
 function errorResult(err: unknown): { content: [{ type: "text"; text: string }]; isError: true } {
@@ -41,11 +54,12 @@ function errorResult(err: unknown): { content: [{ type: "text"; text: string }];
 }
 
 /**
- * Registers the board tools on an MCP server. Every task tool resolves its
- * target board first (see `resolveBoard`), and every mutation re-locates its
- * row by id.
+ * Registers the board and notes tools on an MCP server. Every task tool
+ * resolves its target board first (see `resolveBoard`), every note tool its
+ * notes collection (`resolveNotes`), and every mutation re-locates its row
+ * by id.
  */
-export function registerTools(server: McpServer, catalog: BoardCatalog): void {
+export function registerTools(server: McpServer, catalog: MemoriaCatalog): void {
   server.tool(
     "list_boards",
     "List the account's boards (id, name, last modified; newest first). Pass a board's id as " +
@@ -166,6 +180,95 @@ export function registerTools(server: McpServer, catalog: BoardCatalog): void {
         const client = await resolveBoard(catalog, board_id);
         await board.deleteTask(client, id);
         return { content: [{ type: "text", text: `Deleted task ${id}.` }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "list_note_collections",
+    "List the account's notes collections (id, name, last modified; newest first). A notes " +
+      "collection is a grid of small markdown notes, separate from boards. Pass a collection's " +
+      "id as notes_id to the note tools; with exactly one collection, notes_id can be omitted.",
+    {},
+    async () => {
+      try {
+        const collections = await catalog.listNotesCollections();
+        return { content: [{ type: "text", text: JSON.stringify(collections, null, 2) }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "list_notes",
+    "List every note in a notes collection, most recently edited first. Each note has a title " +
+      "and a markdown body.",
+    { notes_id: notesIdSchema },
+    async ({ notes_id }) => {
+      try {
+        const client = await resolveNotes(catalog, notes_id);
+        const notes = await board.listNotes(client);
+        return { content: [{ type: "text", text: JSON.stringify(notes, null, 2) }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "add_note",
+    "Create a new note. Give it a short title and a markdown body (headings, lists, links, " +
+      "bold/italic, code). Notes created this way are tagged source=agent.",
+    {
+      notes_id: notesIdSchema,
+      title: z.string().min(1, "title is required"),
+      body: z.string().optional().describe("Markdown body of the note."),
+    },
+    async ({ notes_id, title, body }) => {
+      try {
+        const client = await resolveNotes(catalog, notes_id);
+        const note = await board.addNote(client, { title, body }, "agent");
+        return { content: [{ type: "text", text: noteText(note) }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "update_note",
+    "Edit a note's title and/or markdown body. Fields you omit are left unchanged; the body " +
+      "you pass replaces the whole body. Get the id from list_notes.",
+    {
+      notes_id: notesIdSchema,
+      id: z.string().min(1),
+      title: z.string().min(1).optional(),
+      body: z.string().optional().describe("New markdown body; replaces the existing one."),
+    },
+    async ({ notes_id, id, title, body }) => {
+      try {
+        const client = await resolveNotes(catalog, notes_id);
+        const note = await board.updateNote(client, id, { title, body });
+        return { content: [{ type: "text", text: noteText(note) }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.tool(
+    "delete_note",
+    "Permanently delete a single note row. There is no undo tool — use Google Sheets version " +
+      "history to recover if needed.",
+    { notes_id: notesIdSchema, id: z.string().min(1) },
+    async ({ notes_id, id }) => {
+      try {
+        const client = await resolveNotes(catalog, notes_id);
+        await board.deleteNote(client, id);
+        return { content: [{ type: "text", text: `Deleted note ${id}.` }] };
       } catch (err) {
         return errorResult(err);
       }

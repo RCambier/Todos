@@ -145,43 +145,50 @@ Dependency-free TypeScript. The single definition of what a valid sheet is
   functions, differing only in the `SheetStore` adapter and the `source`
   stamped on new tasks.
 
-### `packages/mcp-server` — the board tools
+### `packages/mcp-server` — the board and notes tools
 
-Node + TypeScript, transport-free: it wraps the sheet-core board operations
-as MCP tools and defines `BoardCatalog` (which boards exist, and a
+Node + TypeScript, transport-free: it wraps the sheet-core board and note
+operations as MCP tools and defines the catalog contracts (`BoardCatalog` +
+`NotesCatalog`, together `MemoriaCatalog`: which collections exist, and a
 `SheetStore` for any of them) — and nothing else. The hosted connector
 (next section) mounts the tools over Streamable HTTP; tests run them
 against in-memory fakes.
 
-Every task tool takes an optional `board_id` (from `list_boards`), resolved
-by one shared rule (`resolveBoard`): an explicit `board_id` wins and skips
-board listing entirely; otherwise a lone board is used, no board is an
-error telling the user to create one, and several boards is an error naming
-them — never a silent guess. Accounts with a single board can omit
-`board_id` everywhere.
+Every task tool takes an optional `board_id` (from `list_boards`), and
+every note tool an optional `notes_id` (from `list_note_collections`),
+resolved by one shared rule (`resolveBoard` / `resolveNotes`): an explicit
+id wins and skips listing entirely; otherwise a lone collection of that
+kind is used, none is an error telling the user to create one, and several
+is an error naming them — never a silent guess. Accounts with a single
+board (or notes collection) can omit the id everywhere.
 
-Tools (all mutations take a task `id` from `list_tasks`; every write
+Tools (all mutations take an `id` from the matching list tool; every write
 re-locates the row by ID first, exactly like the web app):
 
-| tool            | input                                                                       | behavior                       |
-| --------------- | --------------------------------------------------------------------------- | ------------------------------ |
-| `list_boards`   | —                                                                           | boards (id, name, modified)    |
-| `list_tasks`    | optional `status` filter                                                    | tasks in board order           |
-| `add_task`      | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column        |
-| `update_task`   | `id`, optional `title`, `notes`, `due_date`, `tags`                         | edit fields                    |
-| `move_task`     | `id`, `status`                                                              | move to top of target column   |
-| `complete_task` | `id`                                                                        | sugar for `move_task(done)`    |
-| `delete_task`   | `id`                                                                        | delete that row                |
+| tool                    | input                                                                       | behavior                     |
+| ----------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| `list_boards`           | —                                                                           | boards (id, name, modified)  |
+| `list_tasks`            | optional `status` filter                                                    | tasks in board order         |
+| `add_task`              | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `tags` | insert at top of column      |
+| `update_task`           | `id`, optional `title`, `notes`, `due_date`, `tags`                         | edit fields                  |
+| `move_task`             | `id`, `status`                                                              | move to top of target column |
+| `complete_task`         | `id`                                                                        | sugar for `move_task(done)`  |
+| `delete_task`           | `id`                                                                        | delete that row              |
+| `list_note_collections` | —                                                                           | notes collections            |
+| `list_notes`            | —                                                                           | notes, newest-edited first   |
+| `add_note`              | `title`, optional markdown `body`                                           | append a note                |
+| `update_note`           | `id`, optional `title`, `body` (replaces whole body)                        | edit fields                  |
+| `delete_note`           | `id`                                                                        | delete that row              |
 
 No bulk or whole-sheet tools — a confused agent can damage at most one row,
-and Sheets version history covers recovery. Tasks created via MCP set
-`source = "agent"` (see schema) so the UI can show provenance.
+and Sheets version history covers recovery. Tasks and notes created via MCP
+set `source = "agent"` (see schema) so the UI can show provenance.
 
 The package's single entrypoint exports `registerTools` and the
-`SheetStore` / `BoardCatalog` contracts — no HTTP, no filesystem access, no
+`SheetStore` / catalog contracts — no HTTP, no filesystem access, no
 Google client.
-Board logic stays testable and transport-agnostic; transports live with
-their hosts.
+Collection logic stays testable and transport-agnostic; transports live
+with their hosts.
 
 ### `apps/web/api` — hosted MCP connector + web sessions (optional)
 
@@ -217,11 +224,13 @@ that proxies Google:
   proxied straight through.
 - Every `/api/mcp` request is authenticated by validating the caller's
   bearer token against Google's tokeninfo endpoint (scope + audience
-  checked); the caller's boards are listed per request from Drive (tagged
-  spreadsheets, at most one listing per request) and each tool call
-  targets its `board_id` — or the account's only board when omitted. All
-  Sheets/Drive calls use the caller's own token — the deployment can never
-  touch a board without the caller's live Google credential in hand.
+  checked); the caller's collections are listed per request from Drive
+  (one tagged-spreadsheet listing at most, split into boards and notes
+  collections by their `appProperties`) and each tool call targets its
+  `board_id` / `notes_id` — or the account's only collection of that kind
+  when omitted. All Sheets/Drive calls use the caller's own token — the
+  deployment can never touch a sheet without the caller's live Google
+  credential in hand.
 
 Env vars (all three required to activate, set in Vercel project settings):
 `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (a second,
@@ -239,9 +248,15 @@ kind only changes the view — both are plain sheets in the user's Drive.
 
 - **Tagging**: boards keep `appProperties.todosBoard = "1"`; notes sheets
   are tagged `memoriaNotes = "1"` instead. The keys are deliberately
-  different so the hosted MCP connector's board catalog (which queries
-  `todosBoard` only) can never open a notes sheet as a board. The web app's
-  tabs/shelf list both kinds in one Drive query (`findCollections`).
+  different so the kinds can never be confused: everything lists through
+  one Drive query (`findCollections`) that reads the tags back, the web
+  app's tabs/shelf show both kinds, and the hosted MCP connector splits
+  the same listing so the board tools can never open a notes sheet (and
+  vice versa).
+- **Agent access**: the connector exposes notes to agents through their own
+  tools (`list_note_collections`, `list_notes`, `add_note`, `update_note`,
+  `delete_note` — see the mcp-server section); agent-written notes land
+  with `source = "agent"`.
 - **Schema**: one tab named `Notes`, header `id, title, body, source,
   created_at, updated_at`. `body` is markdown; `title` and `body` may be
   empty. Same validation posture as the board: precise errors, read-only on

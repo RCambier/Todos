@@ -26,33 +26,14 @@ export interface Collection extends DriveFile {
 }
 
 /**
- * THE board-listing query — the one place the "what counts as a board"
- * filter lives: spreadsheets tagged with `appProperties.todosBoard = "1"`
- * at creation time that the current `drive.file`-scoped token can still
- * see, newest-modified first. Used by the web app's shelf/tabs and by the
- * hosted MCP connector's board catalog (`api/_lib/sheetStore.ts`).
- * Deliberately blind to notes sheets (tagged `memoriaNotes`) — the board
- * tools must never open one.
- */
-export async function findBoards(token: string): Promise<DriveFile[]> {
-  const q =
-    `mimeType='${SPREADSHEET_MIME_TYPE}' and trashed=false and ` +
-    `appProperties has { key='${APP_PROPERTY_KEY}' and value='${APP_PROPERTY_VALUE}' }`;
-  const params = new URLSearchParams({
-    q,
-    orderBy: "modifiedTime desc",
-    pageSize: "50",
-    fields: "files(id,name,modifiedTime)",
-    spaces: "drive",
-  });
-  const data = await authedJson<{ files?: DriveFile[] }>(token, `${BASE}?${params.toString()}`);
-  return (data.files ?? []).map(({ id, name, modifiedTime }) => ({ id, name, modifiedTime }));
-}
-
-/**
- * The collection listing the web app's tabs and shelf render: boards AND
- * notes sheets, in one query, newest-modified first. The `appProperties`
- * on each file say which kind it is.
+ * THE collection-listing query — the one place the "what counts as a
+ * Memoria sheet" filter lives: spreadsheets tagged at creation with
+ * `todosBoard` (a board) or `memoriaNotes` (a notes grid) that the current
+ * `drive.file`-scoped token can still see, newest-modified first. The
+ * `appProperties` on each file say which kind it is. Used by the web app's
+ * tabs/shelf and by the hosted MCP connector's catalog
+ * (`api/_lib/sheetStore.ts`), which splits it by kind so the board tools
+ * can never open a notes sheet and vice versa.
  */
 export async function findCollections(token: string): Promise<Collection[]> {
   const q =
@@ -81,7 +62,7 @@ export async function findCollections(token: string): Promise<Collection[]> {
   }));
 }
 
-/** Tags a spreadsheet as a Todos board so `findBoards` can find it later from any device. */
+/** Tags a spreadsheet as a Todos board so `findCollections` can find it later from any device. */
 export async function tagAsBoard(token: string, fileId: string): Promise<void> {
   await tagFile(token, fileId, { [APP_PROPERTY_KEY]: APP_PROPERTY_VALUE });
 }

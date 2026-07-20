@@ -68,9 +68,9 @@ export function SettingsPanel({ initialSection, onClose, calendarMirror }: Setti
         </button>
         <h2>Connect from agents</h2>
         <p className="settings-intro">
-          Your agents get the same board over MCP — list, add, move, and complete tasks. Nothing to install:
-          each agent signs in with your Google account and sees only this app&rsquo;s boards, never the rest
-          of your Drive.
+          Your agents get the same collections over MCP — list, add, move, and complete tasks, and read or
+          write notes. Nothing to install: each agent signs in with your Google account and sees only this
+          app&rsquo;s sheets, never the rest of your Drive.
         </p>
 
         <div className="settings-step">
@@ -113,9 +113,9 @@ export function SettingsPanel({ initialSection, onClose, calendarMirror }: Setti
             <span className="step-num">3</span> Use it
           </h4>
           <p className="step-desc">
-            Ask your agent about your board — &ldquo;what&rsquo;s in progress?&rdquo; — or let a routine file
-            and complete tasks. Tasks agents create carry a small ✳ chip here. Revoke access anytime from your
-            Google account&rsquo;s third-party access page.
+            Ask your agent about your board — &ldquo;what&rsquo;s in progress?&rdquo; — let a routine file and
+            complete tasks, or have it leave a note in Notes. Anything agents create carries a small ✳ chip
+            here. Revoke access anytime from your Google account&rsquo;s third-party access page.
           </p>
         </div>
 

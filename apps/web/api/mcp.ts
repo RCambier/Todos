@@ -3,12 +3,13 @@ import { registerTools } from "@memoria/mcp-server";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { loadConfig, unconfiguredResponse } from "./_lib/config.js";
 import { DRIVE_FILE_SCOPE, fetchGoogleTokenInfo } from "./_lib/google.js";
-import { RemoteBoardCatalog } from "./_lib/sheetStore.js";
+import { RemoteCatalog } from "./_lib/sheetStore.js";
 
 /**
- * The hosted MCP endpoint: the board tools from `@memoria/mcp-server` (imported from its
- * transport-free entrypoint), operating on the caller's own boards — listed via `list_boards`,
- * targeted per call by `board_id` (optional while the account has a single board). Authenticated
+ * The hosted MCP endpoint: the board and notes tools from `@memoria/mcp-server` (imported from
+ * its transport-free entrypoint), operating on the caller's own collections — boards listed via
+ * `list_boards` / targeted by `board_id`, notes collections via `list_note_collections` /
+ * `notes_id` (either id optional while the account has exactly one of that kind). Authenticated
  * per-request by the caller's Google access token — there is no session, no server-side
  * credential store, nothing to leak.
  */
@@ -35,7 +36,7 @@ async function mcpHandler(request: Request): Promise<Response> {
   const token = request.auth?.token;
   if (!token) return new Response("Unauthorized", { status: 401 });
 
-  const catalog = new RemoteBoardCatalog(token);
+  const catalog = new RemoteCatalog(token);
   const perRequestHandler = createMcpHandler(
     (server) => registerTools(server, catalog),
     { serverInfo: { name: "memoria-mcp-server", version: "0.1.0" } },

@@ -1,19 +1,9 @@
+import { parseItemRows, type SheetError } from "./grid.js";
 import { HEADERS, LEGACY_HEADERS } from "./headers.js";
-import { isBlankRow, RowValidationError, rowToTask } from "./serialize.js";
+import { RowValidationError, rowToTask } from "./serialize.js";
 import { STATUSES, type SheetRow, type Task } from "./types.js";
 
-/**
- * A precise, human-readable description of why a sheet failed validation.
- * `row` is the 1-indexed spreadsheet row (row 1 is the header). `column`
- * and `value` are `null` for sheet-level problems (e.g. a missing or wrong
- * header row) and set for a single bad cell.
- */
-export interface SheetError {
-  row: number;
-  column: string | null;
-  value: string | null;
-  message: string;
-}
+export type { SheetError } from "./grid.js";
 
 export type ParseResult =
   | {
@@ -109,37 +99,11 @@ export function parseSheet(rows: readonly SheetRow[]): ParseResult {
     if (hErr) return { ok: false, error: hErr };
   }
 
-  const tasks: Task[] = [];
-  const idToRow = new Map<string, number>();
-
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i]!;
-    if (isBlankRow(row)) continue;
-
-    const rowNumber = i + 1;
-    try {
-      const task = rowToTask(row);
-      const firstSeenAt = idToRow.get(task.id);
-      if (firstSeenAt !== undefined) {
-        return {
-          ok: false,
-          error: {
-            row: rowNumber,
-            column: "id",
-            value: task.id,
-            message: `Row ${rowNumber}: id "${task.id}" is already used by row ${firstSeenAt} — ids must be unique.`,
-          },
-        };
-      }
-      idToRow.set(task.id, rowNumber);
-      tasks.push(task);
-    } catch (err) {
-      if (err instanceof RowValidationError) {
-        return { ok: false, error: fieldErrorMessage(rowNumber, err) };
-      }
-      throw err;
-    }
-  }
-
-  return { ok: true, tasks, legacyHeader };
+  const result = parseItemRows(rows, {
+    rowToItem: rowToTask,
+    idOf: (task) => task.id,
+    fieldError: fieldErrorMessage,
+  });
+  if (!result.ok) return result;
+  return { ok: true, tasks: result.items, legacyHeader };
 }

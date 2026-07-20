@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   AmbiguousBoardError,
+  AmbiguousNotesCollectionError,
   NoBoardError,
+  NoNotesCollectionError,
   resolveBoard,
+  resolveNotes,
   type BoardCatalog,
   type BoardInfo,
+  type NotesCatalog,
 } from "../src/catalog.js";
 import type { SheetStore } from "@memoria/sheet-core";
 
@@ -64,6 +68,53 @@ describe("resolveBoard", () => {
     expect(err).toBeInstanceOf(AmbiguousBoardError);
     expect((err as Error).message).toContain('"Todos" (board_id a)');
     expect((err as Error).message).toContain('"Notes" (board_id b)');
+    expect(catalog.opened).toEqual([]);
+  });
+});
+
+/** The notes-side twin of `fakeCatalog`. */
+function fakeNotesCatalog(collections: BoardInfo[]): NotesCatalog & { opened: string[]; listed: number } {
+  return {
+    opened: [],
+    listed: 0,
+    async listNotesCollections() {
+      this.listed += 1;
+      return collections;
+    },
+    openNotes(id: string) {
+      this.opened.push(id);
+      return fakeStore(id);
+    },
+  };
+}
+
+describe("resolveNotes", () => {
+  it("opens the named collection directly, without listing", async () => {
+    const catalog = fakeNotesCatalog([boardInfo("a", "Notes"), boardInfo("b", "Recipes")]);
+    const store = await resolveNotes(catalog, "b");
+    expect(await store.readRows()).toEqual([["b"]]);
+    expect(catalog.opened).toEqual(["b"]);
+    expect(catalog.listed).toBe(0);
+  });
+
+  it("defaults to the account's only notes collection when notesId is omitted", async () => {
+    const catalog = fakeNotesCatalog([boardInfo("only", "Notes")]);
+    await resolveNotes(catalog);
+    expect(catalog.opened).toEqual(["only"]);
+  });
+
+  it("throws NoNotesCollectionError when the account has none", async () => {
+    const catalog = fakeNotesCatalog([]);
+    await expect(resolveNotes(catalog)).rejects.toBeInstanceOf(NoNotesCollectionError);
+    expect(catalog.opened).toEqual([]);
+  });
+
+  it("refuses to guess between several collections, naming them in the error", async () => {
+    const catalog = fakeNotesCatalog([boardInfo("a", "Notes"), boardInfo("b", "Recipes")]);
+    const err = await resolveNotes(catalog).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AmbiguousNotesCollectionError);
+    expect((err as Error).message).toContain('"Notes" (notes_id a)');
+    expect((err as Error).message).toContain('"Recipes" (notes_id b)');
     expect(catalog.opened).toEqual([]);
   });
 });
