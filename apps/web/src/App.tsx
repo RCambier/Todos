@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findCollections, untagCollection, type Collection, type CollectionKind } from "./api/drive.js";
+import { findCollections, type Collection, type CollectionKind } from "./api/drive.js";
 import { organizeCollections } from "./api/folders.js";
 import { clearToken, fetchUserProfile, requestToken, type UserProfile } from "./auth/googleAuth.js";
 import {
@@ -10,7 +10,6 @@ import {
   TASKS_SCOPE,
   type SessionState,
 } from "./auth/session.js";
-import { FirstRun } from "./components/FirstRun.js";
 import { Shell } from "./components/Shell.js";
 import { Welcome } from "./components/Welcome.js";
 import { assertConfigured } from "./config.js";
@@ -28,9 +27,6 @@ import {
 /** Refresh the access token this long before it actually expires. */
 const TOKEN_REFRESH_MARGIN_MS = 2 * 60 * 1000;
 
-/** The sheet setup screen is a real history entry (`#sheets`), so Back walks setup ↔ view. */
-const SETUP_HASH = "#sheets";
-
 /** One connected sheet id per kind — the whole point of the simplified model. */
 type SheetIds = { board: string | null; notes: string | null };
 
@@ -47,7 +43,6 @@ export function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   /** Null until the first Drive listing lands (the setup screen shows skeletons). */
   const [collections, setCollections] = useState<Collection[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
   /** Bumped to re-run the Drive listing (after create / link / unlink). */
   const [listEpoch, setListEpoch] = useState(0);
   // True on deployments without the auth backend (see docs/SETUP.md): sign-in
@@ -59,16 +54,9 @@ export function App() {
   // Optional grants on the current session (e.g. the calendar mirror's tasks scope).
   const [scopes, setScopes] = useState<string[]>([]);
   const expiresAtRef = useRef<number | null>(null);
-  const [setupOpen, setSetupOpen] = useState(() => window.location.hash === SETUP_HASH);
 
   const sheetIdsRef = useRef(sheetIds);
   sheetIdsRef.current = sheetIds;
-
-  useEffect(() => {
-    const onHashChange = (): void => setSetupOpen(window.location.hash === SETUP_HASH);
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
 
   const applySession = useCallback((session: SessionState, isBoot: boolean) => {
     switch (session.status) {
@@ -118,7 +106,6 @@ export function App() {
       .then((found) => {
         if (cancelled) return;
         setCollections(found);
-        setListError(null);
         // The Drive listing is the authority on what each slot connects to —
         // a cached id wins while it's still tagged, otherwise newest of kind.
         const slots = deriveSlots(found, sheetIdsRef.current);
@@ -128,8 +115,9 @@ export function App() {
         // strays in. Fire-and-forget: never load-bearing.
         void organizeCollections(token, found);
       })
-      .catch((err) => {
-        if (!cancelled) setListError(err instanceof Error ? err.message : String(err));
+      .catch(() => {
+        // Listing failed (offline, hiccup) — keep whatever we had; the tabs and
+        // any cached view still work, and the next epoch retries.
       });
     return () => {
       cancelled = true;
@@ -199,42 +187,18 @@ export function App() {
     }
   }
 
-  function closeSetup(): void {
-    if (window.location.hash === SETUP_HASH) {
-      // Leave the setup entry in history (Back returns to it) and show the view.
-      history.pushState(null, "", window.location.pathname + window.location.search);
-      setSetupOpen(false);
-    }
-  }
-
-  /** A slot got a sheet (created, linked, or picked from extras) — connect and show it. */
+  /** A kind got a sheet (created, linked, or connected from extras) — connect and show it. */
   function handleSheetReady(kind: CollectionKind, id: string): void {
     applyConnected(kind, id);
     setActiveKind(kind);
     cacheActiveKind(kind);
     setListEpoch((e) => e + 1);
-    closeSetup();
   }
 
-  /** Removes the sheet's kind tag in Drive; the file itself stays put. */
-  async function handleUnlink(kind: CollectionKind, id: string): Promise<void> {
-    if (!token) return;
-    await untagCollection(token, id, kind);
-    if (sheetIdsRef.current[kind] === id) applyConnected(kind, null);
-    setCollections((prev) => prev?.filter((c) => c.id !== id) ?? prev);
-    setListEpoch((e) => e + 1);
-  }
-
-  /** Tab click: switch view. A kind with no sheet routes to the setup screen. */
+  /** Tab click: switch the active view. An empty kind shows its inline setup (design 9b). */
   function handleSelectKind(kind: CollectionKind): void {
     setActiveKind(kind);
     cacheActiveKind(kind);
-    if (sheetIds[kind]) closeSetup();
-  }
-
-  /** Opens the sheet setup screen as a history entry; Back returns to the current view. */
-  function handleOpenSetup(): void {
-    if (window.location.hash !== SETUP_HASH) window.location.hash = SETUP_HASH;
   }
 
   const slots = useMemo(
@@ -261,9 +225,11 @@ export function App() {
     spreadsheetId: activeSheetId ?? "",
     kind: activeKind,
     connectedKinds: { board: sheetIds.board !== null, notes: sheetIds.notes !== null },
+    extras: slots?.[activeKind].extras ?? [],
+    listingLoading: collections === null,
     onSelectKind: handleSelectKind,
+    onSheetReady: handleSheetReady,
     onSignOut: handleSignOut,
-    onOpenSetup: handleOpenSetup,
   };
 
   function handleSignOut(): void {
@@ -280,7 +246,7 @@ export function App() {
     // Paint the last known view instantly while the session restores in the
     // background — the local replica needs no network, and any mutations made
     // in the meantime queue in the outbox until the token arrives.
-    if (activeSheetId && !setupOpen && hasLocalCache(activeSheetId)) {
+    if (activeSheetId && hasLocalCache(activeSheetId)) {
       return <Shell {...shellProps} token={null} profile={null} />;
     }
     return (
@@ -293,24 +259,14 @@ export function App() {
   if (!token) {
     // Offline boot with a local sheet: show it (mutations queue) — a sign-in
     // wall would be useless without a network anyway.
-    if (sessionUnreachable && activeSheetId && !setupOpen && hasLocalCache(activeSheetId)) {
+    if (sessionUnreachable && activeSheetId && hasLocalCache(activeSheetId)) {
       return <Shell {...shellProps} token={null} sessionOffline profile={null} />;
     }
     return <Welcome error={authError} onConnect={() => void handleConnect()} />;
   }
 
-  if (!activeSheetId || setupOpen) {
-    return (
-      <FirstRun
-        token={token}
-        slots={slots}
-        listError={listError}
-        onSheetReady={handleSheetReady}
-        onUnlink={handleUnlink}
-      />
-    );
-  }
-
+  // Signed in: always the app frame. An empty kind's tab shows inline setup
+  // (design 9b) — there is no separate "sheets" screen.
   return (
     <Shell
       {...shellProps}

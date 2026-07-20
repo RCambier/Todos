@@ -134,11 +134,21 @@ window.__notesGrid = () => notesGrid.map((r) => [...r]);
 let uploadCounter = 0;
 
 // ---- Fake Drive file store (the tagged collections the listing serves) ----
-const driveFiles: { id: string; name: string; appProperties: Record<string, string> }[] = [
+// `?nokind=notes` (or `board`) omits that kind's sheets, so the empty-tab
+// setup (design 9b) can be driven.
+const noKind = new URLSearchParams(window.location.search).get("nokind");
+const allDriveFiles: { id: string; name: string; appProperties: Record<string, string> }[] = [
   { id: "sheet-1", name: "Todos", appProperties: { todosBoard: "1" } },
   { id: "sheet-2", name: "Groceries", appProperties: { todosBoard: "1" } },
   { id: "sheet-3", name: "Notes", appProperties: { [NOTES_APP_PROPERTY_KEY]: "1" } },
 ];
+const driveFiles = allDriveFiles.filter((f) =>
+  noKind === "notes"
+    ? f.appProperties[NOTES_APP_PROPERTY_KEY] === undefined
+    : noKind === "board"
+      ? f.appProperties["todosBoard"] === undefined
+      : true,
+);
 
 // ---- Fake Google Tasks backend (for the calendar mirror) ----
 const gtaskLists: { id: string; title: string }[] = [];

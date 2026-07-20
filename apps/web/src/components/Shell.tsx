@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CollectionKind } from "../api/drive.js";
+import type { Collection, CollectionKind } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import { beginTasksConsent } from "../auth/session.js";
 import { useBoard } from "../board/useBoard.js";
@@ -8,6 +8,7 @@ import { getCalendarMirrorEnabled, setCalendarMirrorEnabled } from "../lib/stora
 import { useBackClose } from "../lib/useBackClose.js";
 import { useNotes } from "../notes/useNotes.js";
 import { Board } from "./Board.js";
+import { KindEmpty } from "./KindEmpty.js";
 import { MalformedBanner } from "./MalformedBanner.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { NotesGrid } from "./NotesGrid.js";
@@ -19,24 +20,80 @@ interface ShellProps {
   token: string | null;
   /** True when the session couldn't be restored for network reasons (offline boot). */
   sessionOffline?: boolean;
+  /** Empty string when the active kind has no connected sheet — then the tab shows inline setup (9b). */
   spreadsheetId: string;
   /** Which view this spreadsheet gets: the kanban board or the notes grid. */
   kind: CollectionKind;
   profile: UserProfile | null;
   /** Which kinds have a connected sheet (for the fixed Todos/Notes tabs). */
   connectedKinds: Record<CollectionKind, boolean>;
+  /** Other tagged sheets of the active kind, offered by the empty state as "connect existing". */
+  extras: Collection[];
+  /** True while the Drive listing is still loading (empty state shows a placeholder, not the prompt). */
+  listingLoading: boolean;
   /** False on popup-fallback deployments — the calendar mirror needs the auth backend. */
   calendarMirrorAvailable?: boolean;
   /** Whether the current session's grant includes the Google Tasks scope. */
   hasTasksScope?: boolean;
   onSelectKind: (kind: CollectionKind) => void;
+  onSheetReady: (kind: CollectionKind, id: string) => void;
   onSignOut: () => void;
-  onOpenSetup: () => void;
 }
 
-/** Chooses the view for the active collection. Split so each view mounts only its own data hook. */
+/** Chooses the view for the active kind. Empty (no sheet) → inline setup; otherwise the board or notes view. */
 export function Shell(props: ShellProps) {
+  if (!props.spreadsheetId) return <EmptyShell {...props} />;
   return props.kind === "notes" ? <NotesShell {...props} /> : <BoardShell {...props} />;
+}
+
+/** The active kind has no connected sheet — topbar + tabs stay, the content area is the setup (9b). */
+function EmptyShell({
+  token,
+  kind,
+  profile,
+  connectedKinds,
+  extras,
+  listingLoading,
+  onSelectKind,
+  onSheetReady,
+  onSignOut,
+}: ShellProps) {
+  const [settingsOpen, setSettingsOpen] = useState<false | "agents" | "calendar">(false);
+  useBackClose(settingsOpen !== false, () => setSettingsOpen(false));
+
+  return (
+    <div className="app">
+      <Topbar
+        spreadsheetId=""
+        status="ready"
+        lastSyncedAt={null}
+        offline={false}
+        pendingCount={0}
+        profile={profile}
+        activeKind={kind}
+        connectedKinds={connectedKinds}
+        onSelectKind={onSelectKind}
+        onOpenSettings={(section) => setSettingsOpen(section)}
+        onSignOut={onSignOut}
+      />
+
+      {listingLoading ? (
+        <div className="kind-empty">
+          <p className="kind-empty-note">Loading…</p>
+        </div>
+      ) : (
+        <KindEmpty token={token} kind={kind} extras={extras} onSheetReady={onSheetReady} />
+      )}
+
+      {settingsOpen !== false && (
+        <SettingsPanel
+          initialSection={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          calendarMirror={null}
+        />
+      )}
+    </div>
+  );
 }
 
 function BoardShell({
@@ -49,7 +106,6 @@ function BoardShell({
   hasTasksScope = false,
   onSelectKind,
   onSignOut,
-  onOpenSetup,
 }: ShellProps) {
   const { state, lastSyncedAt, offline, pendingCount, addTask, updateTask, moveTask, deleteTask } = useBoard(
     token,
@@ -91,7 +147,6 @@ function BoardShell({
         onSelectKind={onSelectKind}
         onOpenSettings={(section) => setSettingsOpen(section)}
         onSignOut={onSignOut}
-        onOpenSetup={onOpenSetup}
       />
 
       {state.status === "malformed" && <MalformedBanner error={state.error} spreadsheetId={spreadsheetId} />}
@@ -137,7 +192,6 @@ function NotesShell({
   connectedKinds,
   onSelectKind,
   onSignOut,
-  onOpenSetup,
 }: ShellProps) {
   const { state, lastSyncedAt, offline, pendingCount, addNote, updateNote, deleteNote } = useNotes(
     token,
@@ -172,7 +226,6 @@ function NotesShell({
         onSelectKind={onSelectKind}
         onOpenSettings={(section) => setSettingsOpen(section)}
         onSignOut={onSignOut}
-        onOpenSetup={onOpenSetup}
       />
 
       {state.status === "malformed" && <MalformedBanner error={state.error} spreadsheetId={spreadsheetId} />}

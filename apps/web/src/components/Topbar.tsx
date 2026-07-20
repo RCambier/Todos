@@ -28,7 +28,6 @@ interface TopbarProps {
   onSelectKind: (kind: CollectionKind) => void;
   onOpenSettings: (section: "agents" | "calendar") => void;
   onSignOut: () => void;
-  onOpenSetup: () => void;
 }
 
 function syncLabel(
@@ -87,10 +86,10 @@ function AccountMenu({
   profile,
   sheetUrl,
   onSignOut,
-  onOpenSetup,
   onOpenSettings,
-}: Pick<TopbarProps, "profile" | "onSignOut" | "onOpenSetup" | "onOpenSettings"> & {
-  sheetUrl: string;
+}: Pick<TopbarProps, "profile" | "onSignOut" | "onOpenSettings"> & {
+  /** Null when the active kind has no connected sheet — the Sheets link is hidden. */
+  sheetUrl: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -136,20 +135,20 @@ function AccountMenu({
               {profile.email && <span className="account-email">{profile.email}</span>}
             </div>
           )}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onOpenSetup();
-            }}
-          >
-            Manage sheets
-          </button>
-          <a role="menuitem" href={sheetUrl} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
-            <SheetIcon /> Open in Google Sheets
-          </a>
-          <div className="menu-divider" />
+          {sheetUrl && (
+            <>
+              <a
+                role="menuitem"
+                href={sheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setOpen(false)}
+              >
+                <SheetIcon /> Open in Google Sheets
+              </a>
+              <div className="menu-divider" />
+            </>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -199,29 +198,23 @@ export function Topbar({
   onSelectKind,
   onOpenSettings,
   onSignOut,
-  onOpenSetup,
 }: TopbarProps) {
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+  const hasSheet = spreadsheetId !== "";
+  const sheetUrl = hasSheet ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : null;
   const showOffline = offline || status === "error";
   const label = syncLabel(status, lastSyncedAt, offline, pendingCount);
 
   return (
     <div className="topbar">
-      {/* The logo is the "home" affordance: tap → the sheet setup screen. */}
-      <button
-        type="button"
-        className="wordmark"
-        onClick={onOpenSetup}
-        aria-label="Manage sheets"
-        title="Manage sheets"
-      >
+      {/* Brand mark — navigation is the tabs now, so this is decorative. */}
+      <div className="wordmark">
         <span className="wordmark-glyph" aria-hidden="true">
           <Logo size={24} />
         </span>
         <span className="wordmark-name">
           Memor<span className="wordmark-ia">ia</span>
         </span>
-      </button>
+      </div>
 
       {/* The two fixed views. A kind without a sheet still shows — clicking it
           routes to setup, where the sheet can be created or linked. */}
@@ -241,15 +234,21 @@ export function Topbar({
       </div>
 
       <div className="spacer" />
-      <div className={`sync${showOffline ? " offline" : ""}`} title={label} aria-label={label} role="status">
-        <span className="dot" />
-        <span className="sync-label">{label}</span>
-      </div>
+      {hasSheet && (
+        <div
+          className={`sync${showOffline ? " offline" : ""}`}
+          title={label}
+          aria-label={label}
+          role="status"
+        >
+          <span className="dot" />
+          <span className="sync-label">{label}</span>
+        </div>
+      )}
       <AccountMenu
         profile={profile}
         sheetUrl={sheetUrl}
         onSignOut={onSignOut}
-        onOpenSetup={onOpenSetup}
         onOpenSettings={onOpenSettings}
       />
     </div>

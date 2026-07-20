@@ -76,20 +76,21 @@ React + TypeScript + Vite static SPA. No backend of any kind.
     non-sensitive. Sheets/Drive calls are plain `fetch` against the REST
     APIs with the browser-held access token.
 - **The app manages exactly two sheets** — one Todos board and one Notes
-  grid — surfaced as two fixed tabs. The setup screen ("Manage sheets", also
-  the first-run screen) shows one *slot* per kind:
-  - A connected slot shows the sheet (found via its `appProperties` tag —
-    the multi-device path) with open and **unlink**. Unlinking only removes
-    the tag; the file stays in Drive and can be re-linked any time.
-  - An empty slot offers _create_ (new spreadsheet, tagged, header row
-    written, filed under `Memoria/…`) or _link an existing sheet_ (Google
-    Picker: an empty sheet gets the kind's tab + headers bootstrapped;
-    valid rows of that kind attach as-is; anything else is refused with a
-    clear message).
+  grid — surfaced as two fixed tabs (visible on desktop and mobile; the
+  tabs are the whole navigation, there is no separate "sheets" screen —
+  design 9b). `lib/slots.ts` folds the Drive listing into one *slot* per
+  kind: the connected sheet plus any extras.
+  - A kind **with** a connected sheet shows its board/notes view.
+  - A kind **without** one shows its setup inline in the tab's content
+    area (`components/KindEmpty.tsx`): _create_ (new spreadsheet, tagged,
+    header row written, filed under `Memoria/…`), _link an existing sheet_
+    (Google Picker: an empty sheet gets the kind's tab + headers
+    bootstrapped; valid rows of that kind attach as-is; anything else is
+    refused with a clear message), or _connect_ one of the extras. Filling
+    it in place makes the tab spring to life.
   - Drive may still hold several tagged sheets of a kind (older versions
-    allowed it) — the newest is connected, the rest are listed under the
-    slot to switch to or unlink. (`lib/slots.ts` is the one place this
-    folding lives.)
+    allowed it) — the newest is connected, the rest are the slot's extras,
+    offered by the empty state.
 - The connected sheet id per kind (and the active view) is cached in
   `localStorage`; old single-sheet caches seed the matching slot.
 - **Sync — local-first**: the UI renders a *projection*: the last known
