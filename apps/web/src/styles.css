@@ -49,54 +49,8 @@
   --tag5-fg: #c14c8a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #191919;
-    --bg-subtle: #232322;
-    --ink: #e6e6e3;
-    --ink-mid: #b5b5b0;
-    --ink-muted: #9b9b97;
-    --ink-faint: #6f6f6b;
-    --line: #2c2c2b;
-    --line-strong: #3a3a38;
-    --card: #1f1f1e;
-    --card-done-bg: #1c1c1b;
-    --card-done-line: #262625;
-    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --card-shadow-hover: 0 3px 10px rgba(0, 0, 0, 0.45);
-    --accent: #ececea;
-    --accent-contrast: #1a1a1a;
-    --status-backlog: #b5b5b0;
-    --status-backlog-bg: #2b2b2a;
-    --status-backlog-dot: #82827e;
-    --status-progress: #7aa6cc;
-    --status-progress-bg: #1f2a33;
-    --status-progress-dot: #3f7fbf;
-    --status-done: #7fb391;
-    --status-done-bg: #1f2b23;
-    --status-done-dot: #4c9a66;
-    --warn: #c48a3f;
-    --warn-bg: #2c2416;
-    --warn-line: #4a3d24;
-    --danger: #d9705a;
-    --danger-bg: #2e1d19;
-    --danger-line: #4c2e26;
-    --note-agent-bg: #242118;
-    --note-agent-line: #3b3527;
-    --tag0-bg: #2b2b2b;
-    --tag0-fg: #9b9b9b;
-    --tag1-bg: #1f2a33;
-    --tag1-fg: #5e9fc7;
-    --tag2-bg: #1f2b22;
-    --tag2-fg: #6ca57f;
-    --tag3-bg: #2c2317;
-    --tag3-fg: #c4844a;
-    --tag4-bg: #2a2333;
-    --tag4-fg: #9a7fc7;
-    --tag5-bg: #33212a;
-    --tag5-fg: #c77fa5;
-  }
-}
+/* One theme — the Linen palette above. No dark mode: the app commits to a
+   single warm-paper look everywhere. */
 
 * {
   box-sizing: border-box;
@@ -704,7 +658,7 @@ button:focus-visible {
   width: auto;
   min-width: 0;
   flex: 0 1 auto;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 .composer-buttons {
   display: flex;
@@ -720,8 +674,9 @@ button:focus-visible {
 .flex-spacer {
   flex: 1;
 }
-/* Mobile-only pinned quick-add (design 8d); the mobile media block reveals it. */
-.quick-add {
+/* The mobile-only "+" (components/AddFab.tsx). Hidden on desktop; the mobile
+   media block turns it into a fixed bottom-right button. */
+.fab-add {
   display: none;
 }
 kbd {
@@ -1663,27 +1618,30 @@ kbd {
   .col-head {
     display: none;
   }
-  /* Quick-add: a slim input-looking button pinned under the pills (8d). */
-  .quick-add {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: auto;
-    margin: 10px 16px 0;
-    padding: 10px 14px;
-    border: 1px solid var(--line);
-    background: var(--card);
-    border-radius: 10px;
-    font: inherit;
-    font-size: 13px;
-    color: var(--ink-faint);
-    text-align: left;
+  /* The bottom-right "+" — one on-brand create button for todos and notes. */
+  .fab-add {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    right: 18px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 54px;
+    height: 54px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    box-shadow: 0 6px 18px rgba(46, 59, 46, 0.28);
     cursor: pointer;
+    z-index: 25;
     -webkit-tap-highlight-color: transparent;
   }
-  .quick-add-plus {
-    font-size: 15px;
-    line-height: 1;
+  .fab-add:active {
+    transform: scale(0.96);
+  }
+  /* The notes capture bar is desktop chrome on mobile — the FAB replaces it. */
+  .notes-capture {
+    display: none;
   }
   /* 2a chip pills: bordered, active = filled accent, counts inline */
   .seg-switcher {
@@ -2348,9 +2306,6 @@ kbd {
   .note-card {
     padding: 13px 14px;
     margin-bottom: 10px;
-  }
-  .notes-capture {
-    flex-basis: 100%;
   }
   .notes-toolbar {
     gap: 8px;

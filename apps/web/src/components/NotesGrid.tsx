@@ -2,6 +2,7 @@ import type { Note } from "@memoria/sheet-core";
 import { useState } from "react";
 import { formatShortDate } from "../lib/dates.js";
 import { noteImages, type NoteImage } from "../lib/noteImages.js";
+import { AddFab } from "./AddFab.js";
 import { DriveImage, Markdown } from "./Markdown.js";
 
 /** The grid's provenance filter — design 5a's chip row. */
@@ -126,6 +127,9 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate }: NotesGri
           })}
         </div>
       )}
+
+      {/* Mobile-only "+" — the capture bar's counterpart on small screens. */}
+      {!readOnly && <AddFab label="Take a note" onClick={onCreate} />}
     </div>
   );
 }
