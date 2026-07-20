@@ -58,8 +58,8 @@ function EmptyShell({
   onSheetReady,
   onSignOut,
 }: ShellProps) {
-  const [settingsOpen, setSettingsOpen] = useState<false | "agents" | "calendar">(false);
-  useBackClose(settingsOpen !== false, () => setSettingsOpen(false));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useBackClose(settingsOpen, () => setSettingsOpen(false));
 
   return (
     <div className="app">
@@ -73,7 +73,7 @@ function EmptyShell({
         activeKind={kind}
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={(section) => setSettingsOpen(section)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onSignOut={onSignOut}
       />
 
@@ -85,13 +85,7 @@ function EmptyShell({
         <KindEmpty token={token} kind={kind} extras={extras} onSheetReady={onSheetReady} />
       )}
 
-      {settingsOpen !== false && (
-        <SettingsPanel
-          initialSection={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          calendarMirror={null}
-        />
-      )}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} calendarMirror={null} />}
     </div>
   );
 }
@@ -118,8 +112,8 @@ function BoardShell({
     moveTask,
     deleteTask,
   } = useBoard(token, spreadsheetId);
-  const [settingsOpen, setSettingsOpen] = useState<false | "agents" | "calendar">(false);
-  useBackClose(settingsOpen !== false, () => setSettingsOpen(false));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useBackClose(settingsOpen, () => setSettingsOpen(false));
   const [mirrorEnabled, setMirrorEnabled] = useState(getCalendarMirrorEnabled);
 
   const readOnly = state.status !== "ready";
@@ -152,7 +146,7 @@ function BoardShell({
         activeKind="board"
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={(section) => setSettingsOpen(section)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onSignOut={onSignOut}
       />
 
@@ -185,9 +179,8 @@ function BoardShell({
         onDelete={(id) => void deleteTask(id)}
       />
 
-      {settingsOpen !== false && (
+      {settingsOpen && (
         <SettingsPanel
-          initialSection={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           calendarMirror={
             calendarMirrorAvailable
@@ -211,10 +204,10 @@ function NotesShell({
 }: ShellProps) {
   const { state, lastSyncedAt, offline, pendingCount, writeRejected, addNote, updateNote, deleteNote } =
     useNotes(token, spreadsheetId);
-  const [settingsOpen, setSettingsOpen] = useState<false | "agents" | "calendar">(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // The open note, if any — looked up live so a sync refreshes the dialog.
   const [open, setOpen] = useState<{ id: string; isNew: boolean } | null>(null);
-  useBackClose(settingsOpen !== false, () => setSettingsOpen(false));
+  useBackClose(settingsOpen, () => setSettingsOpen(false));
   useBackClose(open !== null, () => setOpen(null));
 
   const readOnly = state.status !== "ready";
@@ -238,7 +231,7 @@ function NotesShell({
         activeKind="notes"
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={(section) => setSettingsOpen(section)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onSignOut={onSignOut}
       />
 
@@ -283,14 +276,8 @@ function NotesShell({
       )}
 
       {/* The calendar mirror is a board concern (it mirrors due-dated tasks);
-          from the notes view the panel just shows the agents section. */}
-      {settingsOpen !== false && (
-        <SettingsPanel
-          initialSection={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          calendarMirror={null}
-        />
-      )}
+          from the notes view Settings shows only the agents section. */}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} calendarMirror={null} />}
     </div>
   );
 }

@@ -26,7 +26,7 @@ interface TopbarProps {
   /** Which kinds have a connected sheet — a kind without one routes to setup on click. */
   connectedKinds: Record<CollectionKind, boolean>;
   onSelectKind: (kind: CollectionKind) => void;
-  onOpenSettings: (section: "agents" | "calendar") => void;
+  onOpenSettings: () => void;
   onSignOut: () => void;
 }
 
@@ -58,18 +58,15 @@ function SheetIcon() {
   );
 }
 
-/**
- * Six-ray spark — the app's own "agent" mark, matching the ✳ chip on
- * agent-created cards. (Deliberately not a Claude/Codex/MCP logo: those are
- * third-party trademarks this MIT repo shouldn't ship.)
- */
-function AgentIcon() {
+/** Gear glyph for the single "Settings" entry that opens the settings drawer. */
+function GearIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="2.1" stroke="currentColor" strokeWidth="1.3" />
       <path
-        d="M8 2.2v11.6M2.98 5.1l10.04 5.8M13.02 5.1 2.98 10.9"
+        d="M8 1.6v1.7M8 12.7v1.7M14.4 8h-1.7M3.3 8H1.6M12.5 3.5l-1.2 1.2M4.7 11.3l-1.2 1.2M12.5 12.5l-1.2-1.2M4.7 4.7 3.5 3.5"
         stroke="currentColor"
-        strokeWidth="1.4"
+        strokeWidth="1.3"
         strokeLinecap="round"
       />
     </svg>
@@ -154,20 +151,10 @@ function AccountMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              onOpenSettings("agents");
+              onOpenSettings();
             }}
           >
-            <AgentIcon /> Connect AI agents
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onOpenSettings("calendar");
-            }}
-          >
-            Google Calendar sync
+            <GearIcon /> Settings
           </button>
           <div className="menu-divider" />
           <button

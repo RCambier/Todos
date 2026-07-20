@@ -1302,11 +1302,51 @@ kbd {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 .settings-panel h2 {
   font-size: 16px;
   margin: 0;
+}
+/* Header: title left, close right — one row, not a floated × above the title. */
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* Section switcher — a quiet segmented control so the two concerns are
+   clearly separate views, never one long scroll reached from two menu items. */
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-subtle);
+  border-radius: 9px;
+}
+.settings-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.settings-tab:hover {
+  color: var(--ink);
+}
+.settings-tab.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.settings-body {
+  display: flex;
+  flex-direction: column;
 }
 .settings-panel h3 {
   font-size: 13px;
@@ -1463,12 +1503,16 @@ kbd {
   word-break: break-word;
 }
 .settings-panel .close {
-  align-self: flex-end;
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
   color: var(--ink-faint);
   cursor: pointer;
+  padding: 0 2px;
+}
+.settings-panel .close:hover {
+  color: var(--ink);
 }
 .settings-panel .status-msg {
   font-size: 12.5px;
