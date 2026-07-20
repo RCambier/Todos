@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { findBoards, type DriveFile } from "./api/drive.js";
+import { findCollections, type Collection, type CollectionKind } from "./api/drive.js";
+import { organizeCollections } from "./api/folders.js";
 import { clearToken, fetchUserProfile, requestToken, type UserProfile } from "./auth/googleAuth.js";
 import {
   beginSignIn,
@@ -13,7 +14,14 @@ import { FirstRun } from "./components/FirstRun.js";
 import { Shell } from "./components/Shell.js";
 import { Welcome } from "./components/Welcome.js";
 import { assertConfigured } from "./config.js";
-import { getCachedSpreadsheetId, readReplica, setCachedSpreadsheetId } from "./lib/storage.js";
+import {
+  getCachedCollectionKind,
+  getCachedSpreadsheetId,
+  readNotesReplica,
+  readReplica,
+  setCachedCollectionKind,
+  setCachedSpreadsheetId,
+} from "./lib/storage.js";
 
 /** Refresh the access token this long before it actually expires. */
 const TOKEN_REFRESH_MARGIN_MS = 2 * 60 * 1000;
@@ -27,8 +35,9 @@ export function App() {
   const [authBusy, setAuthBusy] = useState(true);
   const [authError, setAuthError] = useState<string | null>(() => consumeAuthError());
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(() => getCachedSpreadsheetId());
+  const [kind, setKind] = useState<CollectionKind>(() => getCachedCollectionKind());
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [boards, setBoards] = useState<DriveFile[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   // True on deployments without the auth backend (see docs/SETUP.md): sign-in
   // falls back to the GIS popup, and sessions last one visit.
   const [popupMode, setPopupMode] = useState(false);
@@ -76,19 +85,30 @@ export function App() {
   useEffect(() => {
     if (!token) {
       setProfile(null);
-      setBoards([]);
+      setCollections([]);
       return;
     }
     let cancelled = false;
     void fetchUserProfile(token).then((p) => {
       if (!cancelled) setProfile(p);
     });
-    void findBoards(token)
+    void findCollections(token)
       .then((found) => {
-        if (!cancelled) setBoards(found);
+        if (cancelled) return;
+        setCollections(found);
+        // The cached kind can be stale (or predate kinds entirely) —
+        // the Drive listing is the authority.
+        const active = found.find((c) => c.id === getCachedSpreadsheetId());
+        if (active) {
+          setKind(active.kind);
+          setCachedCollectionKind(active.kind);
+        }
+        // File everything under Memoria/boards | Memoria/notes, moving
+        // strays in. Fire-and-forget: never load-bearing.
+        void organizeCollections(token, found);
       })
       .catch(() => {
-        /* tabs just stay empty — the board itself doesn't depend on this */
+        /* tabs just stay empty — the active view itself doesn't depend on this */
       });
     return () => {
       cancelled = true;
@@ -158,9 +178,11 @@ export function App() {
     }
   }
 
-  function handleBoardReady(id: string): void {
+  function handleCollectionReady(id: string, collectionKind: CollectionKind): void {
     setCachedSpreadsheetId(id);
+    setCachedCollectionKind(collectionKind);
     setSpreadsheetId(id);
+    setKind(collectionKind);
     if (window.location.hash === SHELF_HASH) {
       // Leave the shelf entry in history (Back returns to it) and show the board.
       history.pushState(null, "", window.location.pathname + window.location.search);
@@ -193,18 +215,23 @@ export function App() {
     );
   }
 
+  /** True when the active collection has a local replica to paint from. */
+  const hasLocalCache = (id: string): boolean =>
+    kind === "notes" ? readNotesReplica(id) !== null : readReplica(id) !== null;
+
   if (authBusy) {
-    // Paint the last known board instantly while the session restores in the
+    // Paint the last known view instantly while the session restores in the
     // background — the local replica needs no network, and any mutations made
     // in the meantime queue in the outbox until the token arrives.
-    if (spreadsheetId && !shelfOpen && readReplica(spreadsheetId)) {
+    if (spreadsheetId && !shelfOpen && hasLocalCache(spreadsheetId)) {
       return (
         <Shell
           token={null}
           spreadsheetId={spreadsheetId}
+          kind={kind}
           profile={null}
-          boards={boards}
-          onSelectBoard={handleBoardReady}
+          collections={collections}
+          onSelectCollection={handleCollectionReady}
           onSignOut={handleSignOut}
           onSwitchBoard={handleSwitchBoard}
         />
@@ -218,17 +245,18 @@ export function App() {
   }
 
   if (!token) {
-    // Offline boot with a local board: show it (mutations queue) — a sign-in
-    // wall would be useless without a network anyway.
-    if (sessionUnreachable && spreadsheetId && !shelfOpen && readReplica(spreadsheetId)) {
+    // Offline boot with a local collection: show it (mutations queue) — a
+    // sign-in wall would be useless without a network anyway.
+    if (sessionUnreachable && spreadsheetId && !shelfOpen && hasLocalCache(spreadsheetId)) {
       return (
         <Shell
           token={null}
           sessionOffline
           spreadsheetId={spreadsheetId}
+          kind={kind}
           profile={null}
-          boards={boards}
-          onSelectBoard={handleBoardReady}
+          collections={collections}
+          onSelectCollection={handleCollectionReady}
           onSignOut={handleSignOut}
           onSwitchBoard={handleSwitchBoard}
         />
@@ -238,18 +266,19 @@ export function App() {
   }
 
   if (!spreadsheetId || shelfOpen) {
-    return <FirstRun token={token} onBoardReady={handleBoardReady} />;
+    return <FirstRun token={token} onCollectionReady={handleCollectionReady} />;
   }
 
   return (
     <Shell
       token={token}
       spreadsheetId={spreadsheetId}
+      kind={kind}
       profile={profile}
-      boards={boards}
+      collections={collections}
       calendarMirrorAvailable={!popupMode}
       hasTasksScope={scopes.includes(TASKS_SCOPE)}
-      onSelectBoard={handleBoardReady}
+      onSelectCollection={handleCollectionReady}
       onSignOut={handleSignOut}
       onSwitchBoard={handleSwitchBoard}
     />

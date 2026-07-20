@@ -1,7 +1,9 @@
 # Memoria
 
 **Memoria** — a quiet memory for you and your agents, over Google Sheets you own.
-A kanban todo board whose only backend is a Google Sheet in your own Drive.
+Kanban todo boards and grids of markdown notes whose only backend is Google
+Sheets in your own Drive (filed under `Memoria/boards/` and `Memoria/notes/`;
+images pasted into notes land in `Memoria/notes/attachments/`).
 Two clients read and write that sheet: a web app (the board UI) and an MCP
 server (for coding agents like Claude Code or Codex). Neither holds state —
 the sheet is the single source of truth, so your board, your agents, and

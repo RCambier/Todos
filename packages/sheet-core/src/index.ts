@@ -15,6 +15,31 @@ export { parseSheet, type ParseResult, type SheetError } from "./parse.js";
 export type { SheetStore } from "./store.js";
 export { applyPending, enqueueOp, type PendingOp } from "./pending.js";
 export {
+  NOTES_TAB_NAME,
+  NOTES_RANGE,
+  NOTES_HEADERS,
+  NOTES_APP_PROPERTY_KEY,
+  NOTES_APP_PROPERTY_VALUE,
+  NoteNotFoundError,
+  noteToRow,
+  rowToNote,
+  parseNotesSheet,
+  notesOrder,
+  buildNote,
+  fetchNotes,
+  listNotes,
+  addNote,
+  appendNote,
+  updateNote,
+  deleteNote,
+  applyNotesPending,
+  enqueueNoteOp,
+  type Note,
+  type NewNoteInput,
+  type NotePendingOp,
+  type ParseNotesResult,
+} from "./notes.js";
+export {
   addTask,
   appendTask,
   buildTask,

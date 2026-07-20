@@ -26,8 +26,12 @@ serves it, the production build ignores it.
    `src/verify-main.tsx`'s stubbed fetch — but return it to the standard
    fixture before committing, or commit the improvement deliberately.
 
-Sheets writes are accepted and dropped (the next 5s poll re-serves the same
-grid) — assert on intercepted calls or optimistic state, not persistence.
+Sheets writes mutate real per-tab in-memory grids (`window.__grid()` for
+Tasks, `window.__notesGrid()` for the Notes collection "sheet-3"), so
+flushed mutations survive later polls. Assert on `window.__sheetWrites`,
+`window.__driveWrites` (folder/move/upload calls), or the grids. The Notes
+fixture includes an agent note and a `drive:` image attachment; attachment
+downloads serve a 1×1 PNG and uploads echo back `att-<n>` ids.
 
 ## Gotchas
 

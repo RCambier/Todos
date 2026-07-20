@@ -1,9 +1,15 @@
-import type { PendingOp, Task } from "@memoria/sheet-core";
+import type { Note, NotePendingOp, PendingOp, Task } from "@memoria/sheet-core";
 
 const SPREADSHEET_ID_KEY = "todos:spreadsheetId";
+const COLLECTION_KIND_KEY = "todos:collectionKind";
 const REPLICA_KEY_PREFIX = "todos:replica:";
 const OUTBOX_KEY_PREFIX = "todos:outbox:";
 const CALENDAR_MIRROR_KEY = "todos:calendarMirror";
+const NOTES_REPLICA_KEY_PREFIX = "todos:notes-replica:";
+const NOTES_OUTBOX_KEY_PREFIX = "todos:notes-outbox:";
+
+/** What the cached spreadsheet holds; older caches without the key mean "board". */
+export type CachedCollectionKind = "board" | "notes";
 
 /** Minimal subset of the `Storage` interface, so tests can inject a fake. */
 export interface KeyValueStore {
@@ -22,6 +28,19 @@ export function setCachedSpreadsheetId(id: string, store: KeyValueStore = localS
 
 export function clearCachedSpreadsheetId(store: KeyValueStore = localStorage): void {
   store.removeItem(SPREADSHEET_ID_KEY);
+  store.removeItem(COLLECTION_KIND_KEY);
+}
+
+/** The cached collection's kind — decides which view boots before any network. */
+export function getCachedCollectionKind(store: KeyValueStore = localStorage): CachedCollectionKind {
+  return store.getItem(COLLECTION_KIND_KEY) === "notes" ? "notes" : "board";
+}
+
+export function setCachedCollectionKind(
+  kind: CachedCollectionKind,
+  store: KeyValueStore = localStorage,
+): void {
+  store.setItem(COLLECTION_KIND_KEY, kind);
 }
 
 /** Whether the user turned on the Google Tasks calendar mirror (Settings). */
@@ -93,4 +112,41 @@ export function writeOutbox(
   store: KeyValueStore = localStorage,
 ): void {
   writeJson(store, OUTBOX_KEY_PREFIX + spreadsheetId, ops);
+}
+
+/** The notes twin of the replica/outbox pair, one per notes spreadsheet. */
+
+export interface PersistedNotesReplica {
+  notes: Note[];
+  /** ISO timestamp of the fetch that produced this snapshot. */
+  fetchedAt: string;
+}
+
+export function readNotesReplica(
+  spreadsheetId: string,
+  store: KeyValueStore = localStorage,
+): PersistedNotesReplica | null {
+  const replica = readJson<PersistedNotesReplica>(store, NOTES_REPLICA_KEY_PREFIX + spreadsheetId);
+  return replica && Array.isArray(replica.notes) ? replica : null;
+}
+
+export function writeNotesReplica(
+  spreadsheetId: string,
+  replica: PersistedNotesReplica,
+  store: KeyValueStore = localStorage,
+): void {
+  writeJson(store, NOTES_REPLICA_KEY_PREFIX + spreadsheetId, replica);
+}
+
+export function readNotesOutbox(spreadsheetId: string, store: KeyValueStore = localStorage): NotePendingOp[] {
+  const ops = readJson<NotePendingOp[]>(store, NOTES_OUTBOX_KEY_PREFIX + spreadsheetId);
+  return Array.isArray(ops) ? ops : [];
+}
+
+export function writeNotesOutbox(
+  spreadsheetId: string,
+  ops: NotePendingOp[],
+  store: KeyValueStore = localStorage,
+): void {
+  writeJson(store, NOTES_OUTBOX_KEY_PREFIX + spreadsheetId, ops);
 }

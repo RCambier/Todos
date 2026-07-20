@@ -1,28 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import type { DriveFile } from "../api/drive.js";
+import type { Collection, CollectionKind } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
-import type { BoardState } from "../board/useBoard.js";
 import { Logo } from "./Logo.js";
+
+/** Sync status shape shared by the board and notes views. */
+type ViewStatus = "loading" | "ready" | "malformed" | "error";
 
 interface TopbarProps {
   spreadsheetId: string;
-  boardStatus: BoardState["status"];
+  status: ViewStatus;
   lastSyncedAt: Date | null;
   /** The sheet is unreachable; local changes queue until it's back. */
   offline: boolean;
   /** Local mutations not yet confirmed against the sheet. */
   pendingCount: number;
   profile: UserProfile | null;
-  /** All boards this account can see — rendered as tabs, current one active. */
-  boards: DriveFile[];
-  onSelectBoard: (id: string) => void;
+  /** All collections this account can see — rendered as tabs, current one active. */
+  collections: Collection[];
+  onSelectCollection: (id: string, kind: CollectionKind) => void;
   onOpenSettings: (section: "agents" | "calendar") => void;
   onSignOut: () => void;
   onSwitchBoard: () => void;
 }
 
 function syncLabel(
-  status: BoardState["status"],
+  status: ViewStatus,
   lastSyncedAt: Date | null,
   offline: boolean,
   pendingCount: number,
@@ -179,21 +181,21 @@ function AccountMenu({
 
 export function Topbar({
   spreadsheetId,
-  boardStatus,
+  status,
   lastSyncedAt,
   offline,
   pendingCount,
   profile,
-  boards,
-  onSelectBoard,
+  collections,
+  onSelectCollection,
   onOpenSettings,
   onSignOut,
   onSwitchBoard,
 }: TopbarProps) {
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-  const showOffline = offline || boardStatus === "error";
-  const label = syncLabel(boardStatus, lastSyncedAt, offline, pendingCount);
-  const activeBoard = boards.find((b) => b.id === spreadsheetId);
+  const showOffline = offline || status === "error";
+  const label = syncLabel(status, lastSyncedAt, offline, pendingCount);
+  const activeCollection = collections.find((c) => c.id === spreadsheetId);
 
   return (
     <div className="topbar">
@@ -213,32 +215,37 @@ export function Topbar({
         </span>
       </button>
 
-      {/* One tab per board this account can see; + opens the board shelf. */}
-      <div className="board-tabs" role="tablist" aria-label="Boards">
-        {boards.map((b) => (
+      {/* One tab per collection this account can see; + opens the shelf. */}
+      <div className="board-tabs" role="tablist" aria-label="Collections">
+        {collections.map((c) => (
           <button
-            key={b.id}
+            key={c.id}
             type="button"
             role="tab"
-            aria-selected={b.id === spreadsheetId}
-            className={`board-tab${b.id === spreadsheetId ? " active" : ""}`}
-            onClick={() => b.id !== spreadsheetId && onSelectBoard(b.id)}
+            aria-selected={c.id === spreadsheetId}
+            className={`board-tab${c.id === spreadsheetId ? " active" : ""}`}
+            onClick={() => c.id !== spreadsheetId && onSelectCollection(c.id, c.kind)}
           >
-            {b.name}
+            {c.name}
           </button>
         ))}
-        {boards.length === 0 && (
+        {collections.length === 0 && (
           <span className="board-tab active" role="tab" aria-selected="true">
             Board
           </span>
         )}
-        <button type="button" className="board-tab add-board" aria-label="Add board" onClick={onSwitchBoard}>
+        <button
+          type="button"
+          className="board-tab add-board"
+          aria-label="Add collection"
+          onClick={onSwitchBoard}
+        >
           +
         </button>
       </div>
 
-      {/* Mobile shows just the active board's name where the tabs would be. */}
-      <span className="mobile-board-name">{activeBoard?.name ?? "Board"}</span>
+      {/* Mobile shows just the active collection's name where the tabs would be. */}
+      <span className="mobile-board-name">{activeCollection?.name ?? "Board"}</span>
 
       <div className="spacer" />
       <div className={`sync${showOffline ? " offline" : ""}`} title={label} aria-label={label} role="status">

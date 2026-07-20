@@ -230,6 +230,56 @@ Env vars (all three required to activate, set in Vercel project settings):
 the only server-side secrets in the whole project, and they are deployment
 credentials, not user credentials.
 
+## Notes — the second collection kind
+
+Since 2026-07, a tagged spreadsheet is a **collection** of one of two kinds:
+a **board** (the kanban above) or a **notes** grid (design 5a/5b: a
+Keep-style masonry of small markdown notes, same shell, second tab). The
+kind only changes the view — both are plain sheets in the user's Drive.
+
+- **Tagging**: boards keep `appProperties.todosBoard = "1"`; notes sheets
+  are tagged `memoriaNotes = "1"` instead. The keys are deliberately
+  different so the hosted MCP connector's board catalog (which queries
+  `todosBoard` only) can never open a notes sheet as a board. The web app's
+  tabs/shelf list both kinds in one Drive query (`findCollections`).
+- **Schema**: one tab named `Notes`, header `id, title, body, source,
+  created_at, updated_at`. `body` is markdown; `title` and `body` may be
+  empty. Same validation posture as the board: precise errors, read-only on
+  a malformed sheet, one row per mutation, rows re-located by id at write
+  time (`sheet-core`'s `notes.ts` — the notes twin of `board.ts`).
+- **Sync**: the notes view is local-first with the same replica + outbox
+  scheme as the board (`notes/useNotes.ts`), minus what notes don't have
+  (no columns, no ordering writes). The grid orders by `updated_at` desc.
+- **Markdown**: a deliberately small dialect (`lib/markdown.ts`) — headings,
+  lists with checkboxes, quotes, fenced code, bold/italic/code spans,
+  http(s) links, images. It parses to a typed AST rendered as React
+  elements, never HTML strings: raw HTML in a note renders as text, so
+  agent-written notes have nothing to inject and there is no sanitizer.
+- **Image attachments**: pasting or dropping an image into the note editor
+  uploads it to `Memoria/notes/attachments/` in the user's Drive
+  (multipart, `drive.file` scope) and embeds `![name](drive:<fileId>)`;
+  render resolves `drive:` sources by downloading with the user's own token
+  into an object URL. Attachments are ordinary Drive files the user owns.
+- **Provenance**: `source` is `user` or `agent`, informational only.
+  Agent-written notes render with a warm paper tint and an ✳ chip; the
+  toolbar chips filter all / by you / by agents.
+
+### Drive layout
+
+The app files its spreadsheets under one folder tree in My Drive:
+
+```
+Memoria/
+  boards/            board spreadsheets
+  notes/             notes spreadsheets
+    attachments/     images pasted into notes
+```
+
+New collections are created there; on boot the web app quietly moves any
+tagged collection that lives elsewhere into place (`api/folders.ts`,
+best-effort, memoized per browser, file contents never touched). Sheets the
+user attached via the Picker are left where the user keeps them.
+
 ## The sheet schema
 
 One tab named `Tasks`. Row 1 is the header, frozen. Columns:
