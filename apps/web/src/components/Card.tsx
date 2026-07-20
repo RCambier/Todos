@@ -3,6 +3,8 @@ import type { Task } from "@memoria/sheet-core";
 import { useState } from "react";
 import { formatBlockedUntil, formatDueDate, isBlockLifted, isOverdue } from "../lib/dates.js";
 import { Linkify } from "../lib/linkify.js";
+import { useTagColors } from "../lib/tagColor.js";
+import { TagChip } from "./TagChip.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
 
 interface CardProps {
@@ -18,6 +20,7 @@ interface CardProps {
 
 export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const tagClass = useTagColors();
 
   function pick(mode: TaskDetailMode): (e: React.MouseEvent) => void {
     return (e) => {
@@ -112,10 +115,16 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
                   <Linkify text={task.notes} />
                 </p>
               )}
+              {task.tags.length > 0 && (
+                <div className="card-tags">
+                  {task.tags.map((t) => (
+                    <TagChip key={t} name={t} colorClass={tagClass(t)} />
+                  ))}
+                </div>
+              )}
               {/* Meta line = the schedule only (due date or blocked-until). No
-                  created date (noise on a board), no agent chip, and no tags —
-                  provenance and tags live in the detail dialog. No schedule →
-                  no meta line at all. */}
+                  created date (noise on a board) and no agent chip — provenance
+                  lives in the detail dialog. No schedule → no meta line. */}
               {(task.dueDate || task.blockedUntil) && (
                 <div className="meta">
                   {task.dueDate && (

@@ -34,19 +34,24 @@
   /* Agent-written notes: a warmer paper than the base. */
   --note-agent-bg: #fbf7ec;
   --note-agent-line: #efe9d6;
-  /* Tag palette — deterministic per tag name (see lib/tagColor.ts). */
-  --tag0-bg: #f1f1ef;
-  --tag0-fg: #6b6a64;
-  --tag1-bg: #e7f3f8;
-  --tag1-fg: #337ea9;
-  --tag2-bg: #edf3ec;
-  --tag2-fg: #448361;
-  --tag3-bg: #faf0e6;
-  --tag3-fg: #b27a38;
-  --tag4-bg: #f6f3f9;
-  --tag4-fg: #9065b0;
-  --tag5-bg: #faf1f5;
-  --tag5-fg: #c14c8a;
+  /* Tag palette — named colors (see lib/tagColor.ts). A tag's color is its
+     user pick, else a built-in default, else a hash of the name. */
+  --tag-blue-bg: #e7f0f8;
+  --tag-blue-fg: #2f6aa8;
+  --tag-orange-bg: #faeadd;
+  --tag-orange-fg: #b25e2c;
+  --tag-green-bg: #e9f1e6;
+  --tag-green-fg: #4a7a4c;
+  --tag-purple-bg: #f1ecf8;
+  --tag-purple-fg: #7d59a8;
+  --tag-pink-bg: #f9ebf1;
+  --tag-pink-fg: #b34d81;
+  --tag-teal-bg: #e2f1ed;
+  --tag-teal-fg: #2e8073;
+  --tag-amber-bg: #f7f0d8;
+  --tag-amber-fg: #90731c;
+  --tag-slate-bg: #ebedf1;
+  --tag-slate-fg: #59636f;
 }
 
 /* One theme — the Linen palette above. No dark mode: the app commits to a
@@ -451,29 +456,101 @@ button:focus-visible {
   border-radius: 4px;
   white-space: nowrap;
 }
-.tag-c0 {
-  background: var(--tag0-bg);
-  color: var(--tag0-fg);
+.tag-blue {
+  background: var(--tag-blue-bg);
+  color: var(--tag-blue-fg);
 }
-.tag-c1 {
-  background: var(--tag1-bg);
-  color: var(--tag1-fg);
+.tag-orange {
+  background: var(--tag-orange-bg);
+  color: var(--tag-orange-fg);
 }
-.tag-c2 {
-  background: var(--tag2-bg);
-  color: var(--tag2-fg);
+.tag-green {
+  background: var(--tag-green-bg);
+  color: var(--tag-green-fg);
 }
-.tag-c3 {
-  background: var(--tag3-bg);
-  color: var(--tag3-fg);
+.tag-purple {
+  background: var(--tag-purple-bg);
+  color: var(--tag-purple-fg);
 }
-.tag-c4 {
-  background: var(--tag4-bg);
-  color: var(--tag4-fg);
+.tag-pink {
+  background: var(--tag-pink-bg);
+  color: var(--tag-pink-fg);
 }
-.tag-c5 {
-  background: var(--tag5-bg);
-  color: var(--tag5-fg);
+.tag-teal {
+  background: var(--tag-teal-bg);
+  color: var(--tag-teal-fg);
+}
+.tag-amber {
+  background: var(--tag-amber-bg);
+  color: var(--tag-amber-fg);
+}
+.tag-slate {
+  background: var(--tag-slate-bg);
+  color: var(--tag-slate-fg);
+}
+
+/* An editable chip: the label is a button (opens the color picker) and the
+   whole chip carries a color. */
+.tag-editable {
+  position: relative;
+  padding: 1px 4px 1px 7px;
+}
+.tag-label {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.tag-swatches {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 26;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+.tag-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.tag-swatch.active {
+  border-color: var(--ink);
+}
+.sw-blue {
+  background: var(--tag-blue-fg);
+}
+.sw-orange {
+  background: var(--tag-orange-fg);
+}
+.sw-green {
+  background: var(--tag-green-fg);
+}
+.sw-purple {
+  background: var(--tag-purple-fg);
+}
+.sw-pink {
+  background: var(--tag-pink-fg);
+}
+.sw-teal {
+  background: var(--tag-teal-fg);
+}
+.sw-amber {
+  background: var(--tag-amber-fg);
+}
+.sw-slate {
+  background: var(--tag-slate-fg);
 }
 .card-tags {
   display: flex;
@@ -1441,32 +1518,144 @@ kbd {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
-/* Editing inside the detail dialog: the description gets real room (the
-   two-row compact form is for the in-column composer), and stays
-   user-resizable on desktop. */
-.detail-panel .composer-notes {
-  min-height: 160px;
-  resize: vertical;
-}
 
-/* Linkified URLs in task notes (lib/linkify.tsx) — the brand's quiet green. */
-.notes a,
-.detail-notes a {
-  color: var(--status-done);
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-.notes a:hover,
-.detail-notes a:hover {
-  text-decoration: underline;
-}
-.detail-notes {
+/* Inline editing (Notion-style): fields look like text and reveal their
+   editable nature on hover/focus — no separate edit mode. */
+.detail-title-input {
   margin: 0;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  resize: none;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  outline: none;
+  overflow: hidden;
+}
+.detail-title-input.done {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.detail-title-input:hover {
+  background: var(--bg-subtle);
+}
+.detail-title-input:focus {
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+.detail-notes-view {
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--ink-mid);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  padding: 6px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  cursor: text;
+}
+.detail-notes-view.empty {
+  color: var(--ink-faint);
+}
+.detail-notes-view:hover {
+  background: var(--bg-subtle);
+}
+.detail-notes-input {
+  width: 100%;
+  min-height: 96px;
+  border: none;
+  background: var(--card);
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 6px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  outline: none;
+  resize: none;
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+.detail-due-input {
+  border: none;
+  background: transparent;
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  outline: none;
+  color-scheme: light;
+  cursor: pointer;
+}
+.detail-due-input:hover {
+  background: var(--bg-subtle);
+}
+.detail-due-input:focus {
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+.detail-schedule {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.detail-schedule-select {
+  border: none;
+  background: transparent;
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}
+.detail-schedule-select:hover {
+  background: var(--bg-subtle);
+}
+.detail-schedule-select:focus {
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+.detail-blocked-event {
+  border: none;
+  background: transparent;
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  outline: none;
+  min-width: 120px;
+  flex: 1;
+}
+.detail-blocked-event:hover {
+  background: var(--bg-subtle);
+}
+.detail-blocked-event:focus {
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+
+/* Linkified URLs in task notes (lib/linkify.tsx) — the brand's quiet green. */
+.notes a,
+.detail-notes-view a {
+  color: var(--status-done);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.notes a:hover,
+.detail-notes-view a:hover {
+  text-decoration: underline;
 }
 .detail-meta {
   margin: 2px 0 0;
@@ -2158,10 +2347,35 @@ kbd {
   letter-spacing: -0.01em;
   line-height: 1.3;
   overflow-wrap: anywhere;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+}
+.note-view-title.editable {
+  cursor: text;
+}
+.note-view-title.editable:hover {
+  background: var(--bg-subtle);
+}
+.note-view-title.empty {
+  color: var(--ink-faint);
+  font-weight: 600;
 }
 .note-view-body {
   min-height: 80px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+}
+.note-view-body.editable {
   cursor: text;
+}
+.note-view-body.editable:hover {
+  background: var(--bg-subtle);
+}
+.note-edit-hint {
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 .note-view-empty {
   margin: 0;

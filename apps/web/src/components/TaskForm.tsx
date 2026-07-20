@@ -1,7 +1,8 @@
 import { MAX_CELL_CHARS } from "@memoria/sheet-core";
 import { useEffect, useRef, useState } from "react";
 import { isDateOnly } from "../lib/dates.js";
-import { tagColorClass } from "../lib/tagColor.js";
+import { useTagColors } from "../lib/tagColor.js";
+import { TagChip } from "./TagChip.js";
 
 export interface TaskFormValues {
   title: string;
@@ -41,6 +42,7 @@ export function TaskForm({ initial, submitLabel, onSubmit, onCancel }: TaskFormP
   const [blockedEvent, setBlockedEvent] = useState(isDateOnly(initialBlocked) ? "" : initialBlocked);
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagDraft, setTagDraft] = useState("");
+  const tagClass = useTagColors();
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -103,17 +105,13 @@ export function TaskForm({ initial, submitLabel, onSubmit, onCancel }: TaskFormP
 
       <div className="composer-tags">
         {tags.map((t) => (
-          <span key={t} className={`tag ${tagColorClass(t)}`}>
-            {t}
-            <button
-              type="button"
-              className="tag-remove"
-              aria-label={`Remove tag ${t}`}
-              onClick={() => setTags(tags.filter((x) => x !== t))}
-            >
-              ×
-            </button>
-          </span>
+          <TagChip
+            key={t}
+            name={t}
+            colorClass={tagClass(t)}
+            editable
+            onRemove={() => setTags(tags.filter((x) => x !== t))}
+          />
         ))}
         <input
           type="text"

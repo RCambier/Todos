@@ -40,6 +40,9 @@ export function NoteEditor({
   onDelete,
 }: NoteEditorProps) {
   const [mode, setMode] = useState<EditorMode>(readOnly ? "view" : startInEdit ? "edit" : "view");
+  // Which field the editor jumps to when you click into a note — so clicking the
+  // title lands the cursor in the title, clicking the body lands it in the body.
+  const [focusField, setFocusField] = useState<"title" | "body">(startInEdit ? "title" : "body");
   const [draftTitle, setDraftTitle] = useState(note.title);
   const [draftBody, setDraftBody] = useState(note.body);
   const [uploads, setUploads] = useState(0);
@@ -94,8 +97,15 @@ export function NoteEditor({
   }, []);
 
   useEffect(() => {
-    if (mode === "edit") (startInEdit ? titleRef : bodyRef).current?.focus();
-  }, [mode, startInEdit]);
+    if (mode === "edit") (focusField === "title" ? titleRef : bodyRef).current?.focus();
+  }, [mode, focusField]);
+
+  /** Opens the editor with the cursor in the clicked field. */
+  function enterEdit(field: "title" | "body"): void {
+    if (readOnly) return;
+    setFocusField(field);
+    setMode("edit");
+  }
 
   // Escape steps back: edit → view (saving), confirm → view, view → close.
   useEffect(() => {
@@ -297,15 +307,19 @@ export function NoteEditor({
           </>
         ) : (
           <>
-            <div
-              className="note-scroll"
-              onClick={() => {
-                if (!readOnly) setMode("edit");
-              }}
-              title={readOnly ? undefined : "Click to edit"}
-            >
-              {draftTitle && <h2 className="note-view-title">{draftTitle}</h2>}
-              <div className="note-view-body">
+            <div className="note-scroll">
+              <h2
+                className={`note-view-title${draftTitle ? "" : " empty"}${readOnly ? "" : " editable"}`}
+                title={readOnly ? undefined : "Click to edit"}
+                onClick={() => enterEdit("title")}
+              >
+                {draftTitle || (readOnly ? "" : "Title")}
+              </h2>
+              <div
+                className={`note-view-body${readOnly ? "" : " editable"}`}
+                title={readOnly ? undefined : "Click to edit"}
+                onClick={() => enterEdit("body")}
+              >
                 {draftBody.trim() !== "" ? (
                   <Markdown text={draftBody} token={token} />
                 ) : (
@@ -324,9 +338,9 @@ export function NoteEditor({
                   Delete…
                 </button>
                 <div className="flex-spacer" />
-                <button type="button" className="btn-primary btn-sm" onClick={() => setMode("edit")}>
-                  Edit
-                </button>
+                <span className="note-edit-hint" aria-hidden="true">
+                  Click the note to edit
+                </span>
               </div>
             )}
             {!readOnly && mode === "confirm" && (

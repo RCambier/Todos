@@ -58,7 +58,7 @@ declare global {
 
 const now = new Date().toISOString();
 
-function task(id: string, title: string, status: Task["status"], dueDate = ""): Task {
+function task(id: string, title: string, status: Task["status"], dueDate = "", tags: string[] = []): Task {
   return {
     id,
     title,
@@ -69,8 +69,8 @@ function task(id: string, title: string, status: Task["status"], dueDate = ""): 
     createdAt: now,
     updatedAt: now,
     dueDate,
-    tags: [],
     blockedUntil: "",
+    tags,
   };
 }
 
@@ -80,8 +80,8 @@ function note(id: string, title: string, body: string, source: Note["source"], u
 
 const grid: string[][] = [
   [...HEADERS],
-  taskToRow(task("t1", "Write the report", "backlog", "2026-07-21")),
-  taskToRow(task("t2", "Ship it", "in_progress")),
+  taskToRow(task("t1", "Write the report", "backlog", "2026-07-21", ["revolut"])),
+  taskToRow(task("t2", "Ship it", "in_progress", "", ["anthropic"])),
   taskToRow(task("t3", "Old done thing", "done")),
 ];
 
