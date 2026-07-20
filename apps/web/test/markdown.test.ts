@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownPreview, parseBlocks, parseInline } from "../src/lib/markdown.js";
+import { parseBlocks, parseInline } from "../src/lib/markdown.js";
 
 describe("parseInline", () => {
   it("passes plain text through", () => {
@@ -99,22 +99,5 @@ describe("parseBlocks", () => {
   it("leaves an unterminated fence as code to the end", () => {
     const blocks = parseBlocks("```\nunclosed");
     expect(blocks).toEqual([{ type: "code", text: "unclosed" }]);
-  });
-});
-
-describe("markdownPreview", () => {
-  it("strips markers and joins blocks", () => {
-    expect(markdownPreview("# Title\n\n- **a**\n- b\n\nsome `code` here")).toBe("Title a · b some code here");
-  });
-
-  it("drops images but keeps their alt text", () => {
-    expect(markdownPreview("before ![screenshot](drive:abc) after")).toBe("before screenshot after");
-  });
-
-  it("truncates long text with an ellipsis", () => {
-    const long = "word ".repeat(100);
-    const preview = markdownPreview(long, 50);
-    expect(preview.length).toBeLessThanOrEqual(50);
-    expect(preview.endsWith("…")).toBe(true);
   });
 });

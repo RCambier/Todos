@@ -188,6 +188,7 @@ function NotesShell({
 
       <NotesGrid
         notes={notes}
+        token={token}
         readOnly={readOnly}
         onOpen={(id) => setOpen({ id, isNew: false })}
         onCreate={handleCreate}

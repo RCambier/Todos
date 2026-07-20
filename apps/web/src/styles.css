@@ -1926,6 +1926,53 @@ kbd {
   color: var(--ink-faint);
   font-style: italic;
 }
+/* Rendered markdown inside a grid card: the same dialect as the open note,
+   scaled down and clipped — the card is a preview, the open note is the
+   full read. */
+.note-card-md {
+  max-height: 200px;
+  overflow: hidden;
+  width: 100%;
+}
+.note-card-md .markdown {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-mid);
+}
+.note-card-md .markdown h1,
+.note-card-md .markdown h2,
+.note-card-md .markdown h3 {
+  font-size: 13.5px;
+  margin: 8px 0 3px;
+  color: var(--ink);
+}
+.note-card-md .markdown p,
+.note-card-md .markdown ul,
+.note-card-md .markdown ol,
+.note-card-md .markdown blockquote {
+  margin: 5px 0;
+}
+.note-card-md .markdown ul,
+.note-card-md .markdown ol {
+  padding-left: 18px;
+}
+.note-card-md .markdown li.task-item {
+  margin-left: -16px;
+}
+.note-card-md .markdown pre {
+  margin: 6px 0;
+  padding: 8px 10px;
+}
+.note-card-md .markdown pre code {
+  font-size: 11.5px;
+}
+.note-card-md .markdown hr {
+  margin: 8px 0;
+}
+.note-card-md .md-img {
+  max-height: 140px;
+  border-radius: 8px;
+}
 .note-card-meta {
   display: flex;
   align-items: center;
@@ -1937,10 +1984,6 @@ kbd {
 .note-card.agent .chip {
   border-color: var(--note-agent-line);
   color: var(--ink-muted);
-}
-.note-card-img-mark {
-  color: var(--ink-faint);
-  font-size: 12px;
 }
 .notes-empty {
   display: flex;

@@ -1,13 +1,15 @@
 import type { Note } from "@memoria/sheet-core";
 import { useState } from "react";
 import { formatShortDate } from "../lib/dates.js";
-import { markdownPreview } from "../lib/markdown.js";
+import { Markdown } from "./Markdown.js";
 
 /** The grid's provenance filter — design 5a's chip row. */
 type NotesFilter = "all" | "user" | "agent";
 
 interface NotesGridProps {
   notes: Note[];
+  /** Null while the session restores — drive: images wait; everything else renders. */
+  token: string | null;
   readOnly: boolean;
   onOpen: (id: string) => void;
   onCreate: () => void;
@@ -27,7 +29,7 @@ function editedLabel(note: Note): string {
  * Keep-style masonry grid. Agent-written notes carry the warm paper tint and
  * the ✳ chip; yours stay plain.
  */
-export function NotesGrid({ notes, readOnly, onOpen, onCreate }: NotesGridProps) {
+export function NotesGrid({ notes, token, readOnly, onOpen, onCreate }: NotesGridProps) {
   const [filter, setFilter] = useState<NotesFilter>("all");
 
   const visible = filter === "all" ? notes : notes.filter((n) => n.source === filter);
@@ -87,28 +89,35 @@ export function NotesGrid({ notes, readOnly, onOpen, onCreate }: NotesGridProps)
       ) : (
         <div className="notes-grid">
           {visible.map((note) => {
-            const preview = markdownPreview(note.body);
-            const hasImage = /!\[[^\]]*\]\((?:https?:\/\/|drive:)/.test(note.body);
+            const hasBody = note.body.trim() !== "";
             return (
-              <button
-                type="button"
+              // A div, not a button: the body renders real markdown (block
+              // elements, links, checkboxes), which can't nest in a button.
+              <div
+                role="button"
+                tabIndex={0}
                 key={note.id}
                 className={`note-card${note.source === "agent" ? " agent" : ""}`}
                 onClick={() => onOpen(note.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpen(note.id);
+                  }
+                }}
               >
                 {note.title && <span className="note-card-title">{note.title}</span>}
-                {preview && <span className="note-card-body">{preview}</span>}
-                {!note.title && !preview && <span className="note-card-body empty">Empty note</span>}
+                {hasBody && (
+                  <div className="note-card-md">
+                    <Markdown text={note.body} token={token} />
+                  </div>
+                )}
+                {!note.title && !hasBody && <span className="note-card-body empty">Empty note</span>}
                 <span className="note-card-meta">
                   {note.source === "agent" && <span className="chip">✳ agent</span>}
-                  {hasImage && (
-                    <span className="note-card-img-mark" title="Has image" aria-label="Has image">
-                      ▣
-                    </span>
-                  )}
                   <span className="note-card-date">Edited {editedLabel(note)}</span>
                 </span>
-              </button>
+              </div>
             );
           })}
           {!readOnly && (
