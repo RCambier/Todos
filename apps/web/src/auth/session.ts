@@ -12,7 +12,7 @@
  */
 
 export type SessionState =
-  | { status: "ok"; token: string; expiresAt: number }
+  | { status: "ok"; token: string; expiresAt: number; scopes: string[] }
   | { status: "signed_out" }
   /** Deployment has no auth backend — use the popup fallback. */
   | { status: "unavailable" }
@@ -27,11 +27,12 @@ export async function fetchSession(): Promise<SessionState> {
     return { status: "error", message: "Couldn't reach the server to restore your session." };
   }
   if (res.ok) {
-    const body = (await res.json()) as { access_token: string; expires_in: number };
+    const body = (await res.json()) as { access_token: string; expires_in: number; scope?: string };
     return {
       status: "ok",
       token: body.access_token,
       expiresAt: Date.now() + body.expires_in * 1000,
+      scopes: (body.scope ?? "").split(" ").filter(Boolean),
     };
   }
   if (res.status === 401) return { status: "signed_out" };
@@ -42,6 +43,14 @@ export async function fetchSession(): Promise<SessionState> {
 export function beginSignIn(): void {
   window.location.assign("/api/auth/start");
 }
+
+/** Re-consent adding the Google Tasks scope (Settings → calendar mirror). */
+export function beginTasksConsent(): void {
+  window.location.assign("/api/auth/start?scope=tasks");
+}
+
+/** The scope the calendar mirror needs (matches api/auth/start.ts TASKS_SCOPE). */
+export const TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 
 /** Clears the session cookie for this browser. Best-effort — worst case the user is signed back in on next load. */
 export async function signOutSession(): Promise<void> {

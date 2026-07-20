@@ -3,6 +3,12 @@ import { buildClaudeCodeCliSnippet, buildConnectorUrl } from "../lib/mcpSnippet.
 
 interface SettingsPanelProps {
   onClose: () => void;
+  /** Null on deployments without the auth backend (the mirror needs it). */
+  calendarMirror: {
+    enabled: boolean;
+    hasScope: boolean;
+    onToggle: () => void;
+  } | null;
 }
 
 /** Copies `value` to the clipboard, showing a transient "Copied" confirmation. */
@@ -27,9 +33,17 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, calendarMirror }: SettingsPanelProps) {
   const connectorUrl = buildConnectorUrl(window.location.origin);
   const cliSnippet = buildClaudeCodeCliSnippet(window.location.origin);
+
+  const mirrorStatus = !calendarMirror
+    ? null
+    : !calendarMirror.enabled
+      ? "Off"
+      : calendarMirror.hasScope
+        ? "On — tasks with a due date appear in Google Calendar"
+        : "Waiting for Google permission — toggle again to finish connecting";
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -89,6 +103,29 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             Google account&rsquo;s third-party access page.
           </p>
         </div>
+
+        {calendarMirror && (
+          <div className="settings-section">
+            <h2>Google Calendar</h2>
+            <p className="settings-intro">
+              Mirror tasks that have a due date into a &ldquo;Memoria&rdquo; Google Tasks list — they show up
+              in Google Calendar on their due date. One-way: the board stays the source of truth; edits in
+              Google are overwritten on the next sync.
+            </p>
+            <div className="mirror-row">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={calendarMirror.enabled}
+                className={`mirror-toggle${calendarMirror.enabled ? " on" : ""}`}
+                onClick={calendarMirror.onToggle}
+              >
+                <span className="knob" />
+              </button>
+              <span className="mirror-status">{mirrorStatus}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

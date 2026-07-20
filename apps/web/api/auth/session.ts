@@ -46,7 +46,9 @@ export async function POST(request: Request): Promise<Response> {
     });
     return json(
       200,
-      { access_token: tokens.access_token, expires_in: tokens.expires_in },
+      // `scope` lets the client know which optional grants (e.g. the
+      // calendar mirror's tasks scope) this session actually carries.
+      { access_token: tokens.access_token, expires_in: tokens.expires_in, scope: tokens.scope },
       { "Set-Cookie": sessionCookieHeader(resealed) },
     );
   } catch (err) {

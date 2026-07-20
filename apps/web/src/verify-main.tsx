@@ -18,6 +18,14 @@ import { HEADERS, taskToRow, type Task } from "@memoria/sheet-core";
 import { App } from "./App.js";
 import "./styles.css";
 
+interface FakeGTask {
+  id: string;
+  title?: string;
+  notes?: string;
+  due?: string;
+  status?: string;
+}
+
 declare global {
   interface Window {
     /** Every stubbed Sheets write, in order — the harness's assertion surface. */
@@ -26,12 +34,14 @@ declare global {
     __setOffline: (offline: boolean) => void;
     /** The fake backend's current grid (header + rows) — for assertions. */
     __grid: () => string[][];
+    /** The fake Google Tasks store: listId → tasks. */
+    __gtasks: () => Record<string, FakeGTask[]>;
   }
 }
 
 const now = new Date().toISOString();
 
-function task(id: string, title: string, status: Task["status"]): Task {
+function task(id: string, title: string, status: Task["status"], dueDate = ""): Task {
   return {
     id,
     title,
@@ -41,14 +51,14 @@ function task(id: string, title: string, status: Task["status"]): Task {
     source: "user",
     createdAt: now,
     updatedAt: now,
-    dueDate: "",
+    dueDate,
     tags: [],
   };
 }
 
 const grid: string[][] = [
   [...HEADERS],
-  taskToRow(task("t1", "Write the report", "backlog")),
+  taskToRow(task("t1", "Write the report", "backlog", "2026-07-21")),
   taskToRow(task("t2", "Ship it", "in_progress")),
   taskToRow(task("t3", "Old done thing", "done")),
 ];
@@ -60,6 +70,12 @@ window.__setOffline = (v: boolean) => {
 };
 window.__sheetWrites = [];
 window.__grid = () => grid.map((r) => [...r]);
+
+// ---- Fake Google Tasks backend (for the calendar mirror) ----
+const gtaskLists: { id: string; title: string }[] = [];
+const gtasksByList: Record<string, FakeGTask[]> = {};
+let gtaskSeq = 0;
+window.__gtasks = () => JSON.parse(JSON.stringify(gtasksByList)) as Record<string, FakeGTask[]>;
 
 /** Row number (1-indexed) from a `Tasks!A5:J5`-style range in a values URL. */
 function rowNumberFromUrl(url: string): number | null {
@@ -77,7 +93,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const json = (body: unknown) =>
     new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 
-  if (url.includes("/api/auth/session")) return json({ access_token: "tok", expires_in: 3600 });
+  if (url.includes("/api/auth/session"))
+    return json({
+      access_token: "tok",
+      expires_in: 3600,
+      scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/tasks",
+    });
   if (url.includes("userinfo")) return json({ name: "Test User", email: "t@example.com", picture: "" });
   if (url.includes("googleapis.com/drive"))
     return json({
@@ -86,6 +107,43 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         { id: "sheet-2", name: "Groceries", modifiedTime: now },
       ],
     });
+
+  if (url.includes("tasks.googleapis.com")) {
+    const method = init?.method ?? "GET";
+    const body: Partial<FakeGTask> =
+      typeof init?.body === "string" ? (JSON.parse(init.body) as Partial<FakeGTask>) : {};
+    if (url.includes("/users/@me/lists")) {
+      if (method === "POST") {
+        const list = { id: `list-${++gtaskSeq}`, title: body.title ?? "" };
+        gtaskLists.push(list);
+        gtasksByList[list.id] = [];
+        return json(list);
+      }
+      return json({ items: gtaskLists });
+    }
+    const listMatch = /\/lists\/([^/]+)\/tasks(?:\/([^/?]+))?/.exec(url);
+    if (listMatch) {
+      const tasks = (gtasksByList[listMatch[1]!] ??= []);
+      const taskId = listMatch[2];
+      if (method === "GET") return json({ items: tasks });
+      if (method === "POST") {
+        const created: FakeGTask = { status: "needsAction", ...body, id: `gt-${++gtaskSeq}` };
+        tasks.push(created);
+        return json(created);
+      }
+      const idx = tasks.findIndex((t) => t.id === taskId);
+      if (method === "PATCH" && idx !== -1) {
+        tasks[idx] = { ...tasks[idx]!, ...body };
+        return json(tasks[idx]);
+      }
+      if (method === "DELETE" && idx !== -1) {
+        tasks.splice(idx, 1);
+        return json({});
+      }
+      return json({});
+    }
+    return json({});
+  }
 
   if (url.includes("sheets.googleapis.com")) {
     const method = init?.method ?? "GET";

@@ -37,6 +37,10 @@ export function buildGoogleAuthorizeUrl(opts: {
     scope: opts.scope ?? DRIVE_FILE_SCOPE,
     access_type: "offline",
     prompt: "consent",
+    // Incremental auth: a re-consent for an extra scope (e.g. the calendar
+    // mirror's tasks scope) keeps every previously granted scope on the
+    // new refresh token instead of replacing the grant.
+    include_granted_scopes: "true",
     state: opts.state,
   });
   return `${GOOGLE_AUTHORIZE_ENDPOINT}?${params.toString()}`;

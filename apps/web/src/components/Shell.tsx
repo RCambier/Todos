@@ -1,8 +1,11 @@
 import { useState } from "react";
 import type { DriveFile } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
-import { useBackClose } from "../lib/useBackClose.js";
+import { beginTasksConsent } from "../auth/session.js";
 import { useBoard } from "../board/useBoard.js";
+import { useTasksMirror } from "../calendar/useTasksMirror.js";
+import { getCalendarMirrorEnabled, setCalendarMirrorEnabled } from "../lib/storage.js";
+import { useBackClose } from "../lib/useBackClose.js";
 import { Board } from "./Board.js";
 import { MalformedBanner } from "./MalformedBanner.js";
 import { SettingsPanel } from "./SettingsPanel.js";
@@ -16,6 +19,10 @@ interface ShellProps {
   spreadsheetId: string;
   profile: UserProfile | null;
   boards: DriveFile[];
+  /** False on popup-fallback deployments — the calendar mirror needs the auth backend. */
+  calendarMirrorAvailable?: boolean;
+  /** Whether the current session's grant includes the Google Tasks scope. */
+  hasTasksScope?: boolean;
   onSelectBoard: (id: string) => void;
   onSignOut: () => void;
   onSwitchBoard: () => void;
@@ -27,6 +34,8 @@ export function Shell({
   spreadsheetId,
   profile,
   boards,
+  calendarMirrorAvailable = false,
+  hasTasksScope = false,
   onSelectBoard,
   onSignOut,
   onSwitchBoard,
@@ -37,9 +46,25 @@ export function Shell({
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   useBackClose(settingsOpen, () => setSettingsOpen(false));
+  const [mirrorEnabled, setMirrorEnabled] = useState(getCalendarMirrorEnabled);
 
   const readOnly = state.status !== "ready";
   const tasks = state.status === "ready" ? state.tasks : [];
+
+  useTasksMirror({
+    token,
+    boardId: spreadsheetId,
+    tasks: state.status === "ready" ? state.tasks : null,
+    active: mirrorEnabled && hasTasksScope && calendarMirrorAvailable,
+  });
+
+  /** Turning it on without the scope yet → re-consent redirect; the flag survives the round-trip. */
+  function handleMirrorToggle(): void {
+    const next = !mirrorEnabled;
+    setCalendarMirrorEnabled(next);
+    setMirrorEnabled(next);
+    if (next && !hasTasksScope) beginTasksConsent();
+  }
 
   return (
     <div className="app">
@@ -77,7 +102,16 @@ export function Shell({
         onDelete={(id) => void deleteTask(id)}
       />
 
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsPanel
+          onClose={() => setSettingsOpen(false)}
+          calendarMirror={
+            calendarMirrorAvailable
+              ? { enabled: mirrorEnabled, hasScope: hasTasksScope, onToggle: handleMirrorToggle }
+              : null
+          }
+        />
+      )}
     </div>
   );
 }

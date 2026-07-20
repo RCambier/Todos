@@ -6,6 +6,7 @@ import {
   consumeAuthError,
   fetchSession,
   signOutSession,
+  TASKS_SCOPE,
   type SessionState,
 } from "./auth/session.js";
 import { FirstRun } from "./components/FirstRun.js";
@@ -34,6 +35,8 @@ export function App() {
   // Session restore failed for network-ish reasons (not "signed out") —
   // offline boots keep showing the cached board instead of a sign-in wall.
   const [sessionUnreachable, setSessionUnreachable] = useState(false);
+  // Optional grants on the current session (e.g. the calendar mirror's tasks scope).
+  const [scopes, setScopes] = useState<string[]>([]);
   const expiresAtRef = useRef<number | null>(null);
   const [shelfOpen, setShelfOpen] = useState(() => window.location.hash === SHELF_HASH);
 
@@ -48,6 +51,7 @@ export function App() {
       case "ok":
         expiresAtRef.current = session.expiresAt;
         setToken(session.token);
+        setScopes(session.scopes);
         setSessionUnreachable(false);
         break;
       case "signed_out":
@@ -243,6 +247,8 @@ export function App() {
       spreadsheetId={spreadsheetId}
       profile={profile}
       boards={boards}
+      calendarMirrorAvailable={!popupMode}
+      hasTasksScope={scopes.includes(TASKS_SCOPE)}
       onSelectBoard={handleBoardReady}
       onSignOut={handleSignOut}
       onSwitchBoard={handleSwitchBoard}

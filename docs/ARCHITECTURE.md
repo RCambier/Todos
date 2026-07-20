@@ -66,7 +66,11 @@ React + TypeScript + Vite static SPA. No backend of any kind.
     browser-held, short-lived access token, in memory only, re-requested
     each visit. GIS's `prompt: "none"` "silent refresh" is deliberately not
     used: it opens a popup, and popups outside a user gesture are blocked.
-  - Scopes in both modes: `https://www.googleapis.com/auth/drive.file` — the
+  - Optional, opt-in (Settings): the **Google Tasks calendar mirror** adds
+    the sensitive `auth/tasks` scope via incremental re-consent
+    (`/api/auth/start?scope=tasks`, `include_granted_scopes`) — only users
+    who flip the toggle ever see that consent screen.
+  - Base scopes in both modes: `https://www.googleapis.com/auth/drive.file` — the
     app can only access files it created or files the user explicitly picked
     — plus basic profile (name, photo, email) for the account menu; all
     non-sensitive. Sheets/Drive calls are plain `fetch` against the REST
@@ -99,6 +103,18 @@ React + TypeScript + Vite static SPA. No backend of any kind.
 - **Malformed sheet**: if validation (from `sheet-core`) fails, show a
   banner naming the exact row/column/value, disable all mutations, keep
   polling — the board resumes automatically once the sheet is fixed.
+- **Google Tasks calendar mirror** (opt-in, one-way): tasks with a due date
+  are mirrored into a "Memoria" Google Tasks list, which Google Calendar
+  shows on the due date (Google Tasks are date-only). The board is the
+  source of truth — the mirror is entirely *derivable*: each mirrored task
+  carries a `[memoria:<boardId>/<taskId>]` marker in its notes as the only
+  join key, and sync is a pure reconcile (`calendar/mirrorDiff.ts`): diff
+  board tasks against marked Google Tasks, then create / patch / complete /
+  delete. No sync state is stored anywhere; hand-made Google Tasks and other
+  boards' mirrors are never touched; done tasks complete their mirror but
+  never create one. Runs from the board loop (immediately on change,
+  periodically for drift), silent on failure — the board never depends on
+  it.
 - **Connect from agents panel**: shows the deployment's connector URL and
   ready-made instructions (claude.ai, Claude Code one-liner) — connecting an
   agent is copy-paste plus a Google consent screen, nothing more.

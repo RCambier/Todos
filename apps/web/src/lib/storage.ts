@@ -3,6 +3,7 @@ import type { PendingOp, Task } from "@memoria/sheet-core";
 const SPREADSHEET_ID_KEY = "todos:spreadsheetId";
 const REPLICA_KEY_PREFIX = "todos:replica:";
 const OUTBOX_KEY_PREFIX = "todos:outbox:";
+const CALENDAR_MIRROR_KEY = "todos:calendarMirror";
 
 /** Minimal subset of the `Storage` interface, so tests can inject a fake. */
 export interface KeyValueStore {
@@ -21,6 +22,16 @@ export function setCachedSpreadsheetId(id: string, store: KeyValueStore = localS
 
 export function clearCachedSpreadsheetId(store: KeyValueStore = localStorage): void {
   store.removeItem(SPREADSHEET_ID_KEY);
+}
+
+/** Whether the user turned on the Google Tasks calendar mirror (Settings). */
+export function getCalendarMirrorEnabled(store: KeyValueStore = localStorage): boolean {
+  return store.getItem(CALENDAR_MIRROR_KEY) === "on";
+}
+
+export function setCalendarMirrorEnabled(enabled: boolean, store: KeyValueStore = localStorage): void {
+  if (enabled) store.setItem(CALENDAR_MIRROR_KEY, "on");
+  else store.removeItem(CALENDAR_MIRROR_KEY);
 }
 
 /**

@@ -9,7 +9,7 @@ import {
   sessionCookieHeader,
   WEB_AUTH_STATE_PURPOSE,
 } from "../../api/_lib/webSession.js";
-import { GET as authStart, WEB_AUTH_SCOPE } from "../../api/auth/start.js";
+import { GET as authStart, TASKS_SCOPE, WEB_AUTH_SCOPE } from "../../api/auth/start.js";
 import { GET as authCallback } from "../../api/auth/callback.js";
 import { POST as authSession } from "../../api/auth/session.js";
 import { POST as authSignout } from "../../api/auth/signout.js";
@@ -93,6 +93,7 @@ describe("GET /api/auth/start", () => {
     expect(location.searchParams.get("access_type")).toBe("offline");
     expect(location.searchParams.get("prompt")).toBe("consent");
     expect(location.searchParams.get("scope")).toBe(WEB_AUTH_SCOPE);
+    expect(location.searchParams.get("include_granted_scopes")).toBe("true");
 
     const state = openBlob<{ issuedAt: number }>(
       SECRET,
@@ -100,6 +101,13 @@ describe("GET /api/auth/start", () => {
       location.searchParams.get("state")!,
     );
     expect(state?.issuedAt).toBeTypeOf("number");
+  });
+
+  it("adds the Google Tasks scope for the calendar-mirror re-consent (?scope=tasks)", () => {
+    const res = authStart(new Request(`${ORIGIN}/api/auth/start?scope=tasks`));
+    const location = new URL(res.headers.get("location")!);
+    expect(location.searchParams.get("scope")).toBe(`${WEB_AUTH_SCOPE} ${TASKS_SCOPE}`);
+    expect(location.searchParams.get("include_granted_scopes")).toBe("true");
   });
 });
 
@@ -208,7 +216,7 @@ describe("POST /api/auth/session", () => {
     const res = await authSession(sessionRequest(`${SESSION_COOKIE_NAME}=${cookie}`));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ access_token: "at-fresh", expires_in: 3599 });
+    expect(await res.json()).toEqual({ access_token: "at-fresh", expires_in: 3599, scope: WEB_AUTH_SCOPE });
 
     const refreshBody = String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body);
     expect(refreshBody).toContain("grant_type=refresh_token");

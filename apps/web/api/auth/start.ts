@@ -18,17 +18,26 @@ export const WEB_AUTH_SCOPE =
   "openid https://www.googleapis.com/auth/userinfo.profile " +
   `https://www.googleapis.com/auth/userinfo.email ${DRIVE_FILE_SCOPE}`;
 
+/** Opt-in (Settings → calendar mirror): lets the app write the "Memoria" Google Tasks list. */
+export const TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
+
 export function GET(request: Request): Response {
   const config = loadConfig();
   if (!config) return unconfiguredResponse();
 
   const state = sealBlob(config.authSigningSecret, WEB_AUTH_STATE_PURPOSE, { issuedAt: Date.now() });
 
+  // `?scope=tasks` is the calendar-mirror re-consent; anything else gets the
+  // base scopes. include_granted_scopes on the authorize URL keeps prior
+  // grants either way.
+  const wantsTasks = new URL(request.url).searchParams.get("scope") === "tasks";
+  const scope = wantsTasks ? `${WEB_AUTH_SCOPE} ${TASKS_SCOPE}` : WEB_AUTH_SCOPE;
+
   const googleAuthorizeUrl = buildGoogleAuthorizeUrl({
     googleClientId: config.googleClientId,
     redirectUri: `${getPublicOrigin(request)}/api/auth/callback`,
     state,
-    scope: WEB_AUTH_SCOPE,
+    scope,
   });
 
   return Response.redirect(googleAuthorizeUrl, 302);
