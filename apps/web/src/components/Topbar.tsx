@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CollectionKind } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
+import { useIsMobile } from "../lib/useIsMobile.js";
 import { Logo } from "./Logo.js";
 
 /** Sync status shape shared by the board and notes views. */
@@ -190,6 +191,27 @@ export function Topbar({
   const sheetUrl = hasSheet ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : null;
   const showOffline = offline || status === "error";
   const label = syncLabel(status, lastSyncedAt, offline, pendingCount);
+  const isMobile = useIsMobile();
+
+  // On phones the label is hidden and only the dot shows; tapping the dot
+  // reveals the state in a short-lived bubble underneath it.
+  const [syncPopOpen, setSyncPopOpen] = useState(false);
+  const syncRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!syncPopOpen) return;
+    const timer = window.setTimeout(() => setSyncPopOpen(false), 3000);
+    function onPointerDown(e: PointerEvent): void {
+      if (syncRef.current && !syncRef.current.contains(e.target as Node)) setSyncPopOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [syncPopOpen]);
+  useEffect(() => {
+    if (!isMobile) setSyncPopOpen(false);
+  }, [isMobile]);
 
   return (
     <div className="topbar">
@@ -222,15 +244,24 @@ export function Topbar({
 
       <div className="spacer" />
       {hasSheet && (
-        <div
+        <button
+          type="button"
+          ref={syncRef}
           className={`sync${showOffline ? " offline" : ""}`}
           title={label}
           aria-label={label}
-          role="status"
+          onClick={() => isMobile && setSyncPopOpen((o) => !o)}
         >
           <span className="dot" />
-          <span className="sync-label">{label}</span>
-        </div>
+          <span className="sync-label" role="status">
+            {label}
+          </span>
+          {syncPopOpen && (
+            <span className="sync-pop" role="status">
+              {label}
+            </span>
+          )}
+        </button>
       )}
       <AccountMenu
         profile={profile}
