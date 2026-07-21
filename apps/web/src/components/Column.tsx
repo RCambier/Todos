@@ -1,10 +1,18 @@
 import { Droppable } from "@hello-pangea/dnd";
 import type { Status, Task } from "@memoria/sheet-core";
+import { useState } from "react";
 import { STATUS_LABEL, STATUS_PILL_CLASS } from "../lib/statusMeta.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
 import type { TaskDetailMode } from "./TaskDetail.js";
+
+/**
+ * Long columns (mostly Done) collapse to this many cards, with a "Show all"
+ * pill below. Hidden cards are the column's tail, so the visible cards keep
+ * their full-list indexes — drops stay correct while collapsed.
+ */
+const COLLAPSE_AT = 20;
 
 interface ColumnProps {
   status: Status;
@@ -38,6 +46,10 @@ export function Column({
   onComplete,
 }: ColumnProps) {
   const isMobile = useIsMobile();
+  const [showAll, setShowAll] = useState(false);
+
+  const collapsed = !showAll && tasks.length > COLLAPSE_AT;
+  const visible = collapsed ? tasks.slice(0, COLLAPSE_AT) : tasks;
 
   return (
     <div className="col" ref={panelRef} data-status={status}>
@@ -68,7 +80,7 @@ export function Column({
                 onCancel={onCloseComposer}
               />
             )}
-            {tasks.map((task, index) => (
+            {visible.map((task, index) => (
               <Card
                 key={task.id}
                 task={task}
@@ -79,6 +91,16 @@ export function Column({
               />
             ))}
             {provided.placeholder}
+            {collapsed && (
+              <button type="button" className="show-more" onClick={() => setShowAll(true)}>
+                Show {tasks.length - COLLAPSE_AT} more
+              </button>
+            )}
+            {showAll && tasks.length > COLLAPSE_AT && (
+              <button type="button" className="show-more" onClick={() => setShowAll(false)}>
+                Show less
+              </button>
+            )}
             {tasks.length === 0 && !composerOpen && !readOnly && (
               <button className="ghost-add" onClick={onOpenComposer}>
                 + New task

@@ -4,10 +4,10 @@
     {
       "name": "memoria-verify",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5199", "--strictPort"],
+      "runtimeArgs": ["vite", "--port", "5201", "--strictPort"],
       "cwd": "apps/web",
       "env": { "VITE_GOOGLE_CLIENT_ID": "harness", "VITE_GOOGLE_API_KEY": "harness" },
-      "port": 5199
+      "port": 5201
     }
   ]
 }
