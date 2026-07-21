@@ -1,8 +1,8 @@
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
-import { STATUSES, type Status, type Task } from "@memoria/sheet-core";
+import { STATUSES, type Recurrence, type Status, type Task } from "@memoria/sheet-core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { STATUS_LABEL } from "../lib/statusMeta.js";
+import { HIDDEN_STATUSES, STATUS_LABEL, VISIBLE_STATUSES } from "../lib/statusMeta.js";
 import { useBackClose } from "../lib/useBackClose.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
 import { useVisualViewportHeight } from "../lib/useVisualViewportHeight.js";
@@ -22,7 +22,14 @@ interface BoardProps {
   onMove: (id: string, status: Status, dropIndex: number) => void;
   onEdit: (
     id: string,
-    patch: Partial<{ title: string; notes: string; dueDate: string; blockedUntil: string; tags: string[] }>,
+    patch: Partial<{
+      title: string;
+      notes: string;
+      dueDate: string;
+      blockedUntil: string;
+      tags: string[];
+      recurs: Recurrence;
+    }>,
   ) => void;
   onDelete: (id: string) => void;
 }
@@ -57,9 +64,16 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
   }, [mobileComposerOpen]);
   const boardRef = useRef<HTMLDivElement>(null);
   const panelRefs = useRef<Partial<Record<Status, HTMLDivElement>>>({});
+  // The hidden columns (long-horizon buckets) fold away on every load —
+  // deliberately not persisted, so the board always opens focused.
+  const [showHidden, setShowHidden] = useState(false);
+  const columns: readonly Status[] = showHidden
+    ? [...VISIBLE_STATUSES, ...HIDDEN_STATUSES]
+    : VISIBLE_STATUSES;
+  const hiddenCount = HIDDEN_STATUSES.reduce((n, s) => n + tasks.filter((t) => t.status === s).length, 0);
 
   const byStatus = useMemo(() => {
-    const map: Record<Status, Task[]> = { backlog: [], in_progress: [], done: [] };
+    const map = Object.fromEntries(STATUSES.map((s) => [s, []])) as unknown as Record<Status, Task[]>;
     for (const t of tasks) map[t.status].push(t);
     return map;
   }, [tasks]);
@@ -88,12 +102,12 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
       if (!current) return;
       const page = current.clientWidth * 0.85 || 1;
       const index = Math.round(current.scrollLeft / page);
-      const clamped = Math.min(STATUSES.length - 1, Math.max(0, index));
-      setActiveMobileStatus(STATUSES[clamped] ?? DEFAULT_MOBILE_STATUS);
+      const clamped = Math.min(columns.length - 1, Math.max(0, index));
+      setActiveMobileStatus(columns[clamped] ?? DEFAULT_MOBILE_STATUS);
     }
     board.addEventListener("scroll", onScroll, { passive: true });
     return () => board.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [columns]);
 
   function goToPanel(status: Status): void {
     setActiveMobileStatus(status);
@@ -108,8 +122,8 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
     // Desktop: the .board element isn't the scroll container, so nothing to settle.
     if (!board || board.scrollWidth <= board.clientWidth) return;
     const page = board.clientWidth * 0.85 || 1;
-    const index = Math.min(STATUSES.length - 1, Math.max(0, Math.round(board.scrollLeft / page)));
-    const status = STATUSES[index];
+    const index = Math.min(columns.length - 1, Math.max(0, Math.round(board.scrollLeft / page)));
+    const status = columns[index];
     if (status) goToPanel(status);
   }
 
@@ -131,7 +145,7 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
   return (
     <div className="board-scroll">
       <div className="seg-switcher">
-        {STATUSES.map((status) => (
+        {columns.map((status) => (
           <button
             key={status}
             type="button"
@@ -141,10 +155,18 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
             {STATUS_LABEL[status]} {byStatus[status].length}
           </button>
         ))}
+        <button
+          type="button"
+          className="seg-reveal"
+          aria-pressed={showHidden}
+          onClick={() => setShowHidden((v) => !v)}
+        >
+          {showHidden ? "Less" : `+${HIDDEN_STATUSES.length}`}
+        </button>
       </div>
       <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className={`board${cardDragging ? " snap-off" : ""}`} ref={boardRef}>
-          {STATUSES.map((status) => (
+          {columns.map((status) => (
             <Column
               key={status}
               token={token}
@@ -162,10 +184,25 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
               onComplete={(id) => onMove(id, "done", 0)}
             />
           ))}
+          {/* Right-edge rail: reveals the long-horizon columns (desktop). */}
+          <button
+            type="button"
+            className="reveal-rail"
+            aria-pressed={showHidden}
+            title={showHidden ? "Hide extra columns" : "Show hidden columns"}
+            onClick={() => setShowHidden((v) => !v)}
+          >
+            <span className="reveal-rail-label">
+              {showHidden
+                ? "Hide"
+                : `${HIDDEN_STATUSES.length} hidden column${HIDDEN_STATUSES.length === 1 ? "" : "s"}${hiddenCount > 0 ? ` · ${hiddenCount}` : ""}`}
+            </span>
+            <span aria-hidden="true">{showHidden ? "\u00AB" : "\u00BB"}</span>
+          </button>
         </div>
       </DragDropContext>
       <div className="pager-dots" aria-hidden="true">
-        {STATUSES.map((status) => (
+        {columns.map((status) => (
           <span key={status} className={status === activeMobileStatus ? "dot active" : "dot"} />
         ))}
       </div>
@@ -202,8 +239,8 @@ export function Board({ tasks, token, readOnly, onAdd, onMove, onEdit, onDelete 
           readOnly={readOnly}
           onClose={() => setDetail(null)}
           onSave={(patch) => onEdit(detailTask.id, patch)}
-          onComplete={() => {
-            onMove(detailTask.id, "done", 0);
+          onMoveTo={(status) => {
+            onMove(detailTask.id, status, 0);
             setDetail(null);
           }}
           onDelete={() => {

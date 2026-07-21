@@ -1,5 +1,5 @@
 import { HEADERS } from "./headers.js";
-import { isStatus, type SheetRow, type Source, type Task } from "./types.js";
+import { isRecurrence, isStatus, type SheetRow, type Source, type Task } from "./types.js";
 
 /** A single field failed validation. Carries enough to build a precise, human-readable error. */
 export class RowValidationError extends Error {
@@ -58,6 +58,9 @@ export function rowToTask(row: SheetRow): Task {
   // Free-form by design: a date (YYYY-MM-DD) or an event ("Trip done").
   const blockedUntil = cell(row, 10).trim();
 
+  const recurs = cell(row, 11).trim();
+  if (!isRecurrence(recurs)) throw new RowValidationError("recurs", cell(row, 11));
+
   return {
     id,
     title,
@@ -70,6 +73,7 @@ export function rowToTask(row: SheetRow): Task {
     dueDate,
     tags,
     blockedUntil,
+    recurs,
   };
 }
 
@@ -95,6 +99,7 @@ export function taskToRow(task: Task): SheetRow {
     task.dueDate,
     task.tags.join(", "),
     task.blockedUntil,
+    task.recurs,
   ];
 }
 

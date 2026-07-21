@@ -5,7 +5,17 @@ export {
   APP_PROPERTY_KEY,
   APP_PROPERTY_VALUE,
 } from "./headers.js";
-export { STATUSES, type Status, type Source, type Task, type SheetRow } from "./types.js";
+export {
+  STATUSES,
+  RECURRENCES,
+  isRecurrence,
+  type Recurrence,
+  type Status,
+  type Source,
+  type Task,
+  type SheetRow,
+} from "./types.js";
+export { nextYearlyDate, resolveMove } from "./schedule.js";
 export { topSortOrder, betweenSortOrder, boardOrder } from "./ordering.js";
 export { taskToRow, isBlankRow, RowValidationError } from "./serialize.js";
 export { CellLimitError, MAX_CELL_CHARS } from "./grid.js";

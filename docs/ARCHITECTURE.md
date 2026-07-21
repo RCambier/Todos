@@ -138,7 +138,10 @@ React + TypeScript + Vite static SPA. No backend of any kind.
 Dependency-free TypeScript. The single definition of what a valid sheet is
 **and of the safe mutations on it**. Used by both other packages. Exports:
 
-- `Task` type and `Status` enum (`backlog` | `in_progress` | `done`).
+- `Task` type and `Status` enum (`backlog` | `in_progress` | `blocked` |
+  `done`, plus the hidden long-horizon columns `admin_renewals` |
+  `health_checks` — the web app folds those away by default behind the
+  board's right-edge rail; the data model treats every status the same).
 - `HEADERS`, sheet/tab name constants.
 - `parseSheet(rows) → { ok: true, tasks } | { ok: false, error }` where
   `error` pinpoints row, column, and offending value in a human sentence.
@@ -328,7 +331,7 @@ One tab named `Tasks`. Row 1 is the header, frozen. Columns:
 | ------------ | --------------- | -------------------------------------------------------------------- |
 | `id`         | string          | stable random ID, never reused                                       |
 | `title`      | string          | required, non-empty                                                  |
-| `status`     | enum            | `backlog` \| `in_progress` \| `done`                                 |
+| `status`     | enum            | `backlog` \| `in_progress` \| `blocked` \| `done` \| `admin_renewals` \| `health_checks` |
 | `sort_order` | number          | ascending within a column = top→bottom                               |
 | `notes`      | string          | optional                                                             |
 | `source`     | string          | `user` or `agent`; informational only                                |
@@ -337,6 +340,7 @@ One tab named `Tasks`. Row 1 is the header, frozen. Columns:
 | `due_date`   | string          | `YYYY-MM-DD` or empty; optional                                      |
 | `tags`       | string          | comma-separated labels; optional (so tag names can't contain commas) |
 | `blocked_until` | string       | `YYYY-MM-DD` **or** free-text event (e.g. `Trip done`); empty = not blocked |
+| `recurs`     | enum            | `yearly` or empty. Completing a yearly task advances its date one year (into the future) and leaves it in its column, instead of finishing it |
 
 Validation rules (enforced identically by both clients via `sheet-core`):
 header row must match exactly; `id`, `title`, `status` required;

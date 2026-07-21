@@ -1,4 +1,4 @@
-import type { Task } from "@memoria/sheet-core";
+import { STATUSES, type Recurrence, type Status, type Task } from "@memoria/sheet-core";
 import { useEffect, useRef, useState } from "react";
 import {
   formatBlockedUntilLong,
@@ -27,6 +27,7 @@ type TaskPatch = Partial<{
   dueDate: string;
   blockedUntil: string;
   tags: string[];
+  recurs: Recurrence;
 }>;
 
 /** The scheduling slot: a task is either due, blocked, or neither (matches TaskForm). */
@@ -39,8 +40,8 @@ interface TaskDetailProps {
   readOnly: boolean;
   onClose: () => void;
   onSave: (patch: TaskPatch) => void;
-  /** Marks the task done and closes the dialog. */
-  onComplete: () => void;
+  /** Moves the task to another column and closes the dialog. */
+  onMoveTo: (status: Status) => void;
   onDelete: () => void;
 }
 
@@ -58,7 +59,7 @@ export function TaskDetail({
   readOnly,
   onClose,
   onSave,
-  onComplete,
+  onMoveTo,
   onDelete,
 }: TaskDetailProps) {
   const [confirming, setConfirming] = useState(initialMode === "confirm");
@@ -246,11 +247,7 @@ export function TaskDetail({
               </span>
             )}
             <div className="flex-spacer" />
-            {task.status !== "done" && (
-              <button type="button" className="btn-primary btn-sm" onClick={onComplete}>
-                Move to Done
-              </button>
-            )}
+            <MoveToButton current={task.status} onMoveTo={onMoveTo} />
           </div>
         )}
         {!readOnly && confirming && (
@@ -453,6 +450,7 @@ function ScheduleField({
             <dt>Due</dt>
             <dd className={isOverdue(task) ? "overdue" : undefined}>
               ⚑ {formatDueDateLong(task.dueDate)}
+              {task.recurs === "yearly" && " · repeats yearly"}
               {isOverdue(task) && " · overdue"}
             </dd>
           </div>
@@ -550,8 +548,73 @@ function ScheduleField({
               />
             </>
           )}
+          {kind !== "none" && (
+            <select
+              className="detail-schedule-select"
+              aria-label="Repeats"
+              value={task.recurs}
+              onFocus={() => (focused.current = true)}
+              onBlur={() => (focused.current = false)}
+              onChange={(e) => onSave({ recurs: e.target.value as Recurrence })}
+            >
+              <option value="">Doesn&rsquo;t repeat</option>
+              <option value="yearly">Repeats yearly</option>
+            </select>
+          )}
         </div>
       </dd>
+    </div>
+  );
+}
+
+/**
+ * "Move to…" — the dialog's one status control. Opens a small menu of every
+ * column but the current one (hidden columns included: this is how a task
+ * reaches Admin renewals without drag-and-drop). Same menu chrome as the
+ * card's ⋯ menu.
+ */
+function MoveToButton({ current, onMoveTo }: { current: Status; onMoveTo: (status: Status) => void }) {
+  const [open, setOpen] = useState(false);
+  const destinations = STATUSES.filter((s) => s !== current);
+
+  return (
+    <div className="move-to">
+      <button
+        type="button"
+        className="btn-primary btn-sm"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Move to…{" "}
+        <span className="move-to-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && (
+        <>
+          <div className="menu-backdrop" onClick={() => setOpen(false)} />
+          <div className="menu-pop move-to-pop" role="menu" aria-label="Move to column">
+            {destinations.map((status) => (
+              <button
+                key={status}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  onMoveTo(status);
+                }}
+              >
+                <span className={`status-pill ${STATUS_PILL_CLASS[status]}`}>
+                  <span className="sdot" />
+                  {STATUS_LABEL[status]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

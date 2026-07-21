@@ -30,6 +30,14 @@ const blockedUntilSchema = z
       "Pass an empty string to clear it.",
   );
 
+const recursSchema = z
+  .enum(board.RECURRENCES)
+  .optional()
+  .describe(
+    '"yearly" makes completing the task advance its date one year instead of finishing it ' +
+      '(for renewals and recurring check-ups); pass "" to make it one-off again.',
+  );
+
 const tagsSchema = z
   .array(
     z
@@ -95,8 +103,9 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "list_tasks",
-    "List tasks on a board, in board order (backlog, then in_progress, then done; " +
-      "top to bottom within each). Optionally filter to a single status.",
+    "List tasks on a board, in board order (backlog, in_progress, blocked, done, then the " +
+      "long-horizon columns admin_renewals and health_checks; top to bottom within each). " +
+      "Optionally filter to a single status.",
     {
       board_id: boardIdSchema,
       status: statusSchema.optional().describe("Only return tasks in this column."),
@@ -123,15 +132,16 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
       status: statusSchema.optional().describe("Defaults to backlog."),
       due_date: dueDateSchema,
       blocked_until: blockedUntilSchema,
+      recurs: recursSchema,
       tags: tagsSchema,
     },
-    async ({ board_id, title, notes, status, due_date, blocked_until, tags }) => {
+    async ({ board_id, title, notes, status, due_date, blocked_until, recurs, tags }) => {
       try {
         if (bothScheduled(due_date, blocked_until)) throw new Error(BOTH_SCHEDULED_MESSAGE);
         const client = await resolveBoard(catalog, board_id);
         const task = await board.addTask(
           client,
-          { title, notes, status, dueDate: due_date, blockedUntil: blocked_until, tags },
+          { title, notes, status, dueDate: due_date, blockedUntil: blocked_until, recurs, tags },
           "agent",
         );
         return { content: [{ type: "text", text: taskText(task) }] };
@@ -152,9 +162,10 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
       notes: z.string().max(MAX_CELL_CHARS).optional(),
       due_date: dueDateSchema,
       blocked_until: blockedUntilSchema,
+      recurs: recursSchema,
       tags: tagsSchema,
     },
-    async ({ board_id, id, title, notes, due_date, blocked_until, tags }) => {
+    async ({ board_id, id, title, notes, due_date, blocked_until, recurs, tags }) => {
       try {
         if (bothScheduled(due_date, blocked_until)) throw new Error(BOTH_SCHEDULED_MESSAGE);
         const client = await resolveBoard(catalog, board_id);
@@ -163,6 +174,7 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
           notes,
           dueDate: due_date,
           blockedUntil: blocked_until,
+          recurs,
           tags,
         });
         return { content: [{ type: "text", text: taskText(task) }] };
@@ -189,7 +201,8 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "complete_task",
-    "Mark a task done. Shorthand for move_task with status=done.",
+    "Mark a task done. Shorthand for move_task with status=done. Completing a yearly " +
+      "recurring task advances its date one year instead of finishing it.",
     { board_id: boardIdSchema, id: z.string().min(1) },
     async ({ board_id, id }) => {
       try {

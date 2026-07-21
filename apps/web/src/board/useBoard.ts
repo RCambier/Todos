@@ -6,6 +6,7 @@ import {
   STATUSES,
   TaskNotFoundError,
   type PendingOp,
+  type Recurrence,
   type SheetError,
   type Status,
   type Task,
@@ -45,7 +46,14 @@ interface UseBoardResult {
   }) => Promise<void>;
   updateTask: (
     id: string,
-    patch: { title?: string; notes?: string; dueDate?: string; blockedUntil?: string; tags?: string[] },
+    patch: {
+      title?: string;
+      notes?: string;
+      dueDate?: string;
+      blockedUntil?: string;
+      tags?: string[];
+      recurs?: Recurrence;
+    },
   ) => Promise<void>;
   /** Moves a task to `status`, inserting it at `dropIndex` among that column's other tasks. */
   moveTask: (id: string, status: Status, dropIndex: number) => Promise<void>;
@@ -338,7 +346,14 @@ export function useBoard(token: string | null, spreadsheetId: string | null): Us
   const updateTask = useCallback(
     async (
       id: string,
-      patch: { title?: string; notes?: string; dueDate?: string; blockedUntil?: string; tags?: string[] },
+      patch: {
+        title?: string;
+        notes?: string;
+        dueDate?: string;
+        blockedUntil?: string;
+        tags?: string[];
+        recurs?: Recurrence;
+      },
     ) => {
       enqueue({ kind: "edit", id, patch, at: new Date().toISOString() });
     },

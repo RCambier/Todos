@@ -122,7 +122,9 @@ describe("parseSheet — row errors", () => {
       expect(result.error.row).toBe(4);
       expect(result.error.column).toBe("status");
       expect(result.error.value).toBe("doing");
-      expect(result.error.message).toBe(`Row 4: status "doing" isn't one of backlog · in_progress · done.`);
+      expect(result.error.message).toBe(
+        `Row 4: status "doing" isn't one of backlog · in_progress · blocked · done · admin_renewals · health_checks.`,
+      );
     }
   });
 

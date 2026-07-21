@@ -27,12 +27,19 @@ describe("rowToTask", () => {
       dueDate: "",
       tags: [],
       blockedUntil: "",
+      recurs: "",
     });
   });
 
   it("reads blocked_until from column K — a date or free-form event text", () => {
     expect(rowToTask([...validRow, "", "", "2026-08-01"]).blockedUntil).toBe("2026-08-01");
     expect(rowToTask([...validRow, "", "", " Trip done "]).blockedUntil).toBe("Trip done");
+  });
+
+  it("reads recurs from column L, rejecting anything but yearly", () => {
+    expect(rowToTask([...validRow, "", "", "", "yearly"]).recurs).toBe("yearly");
+    expect(rowToTask([...validRow, "", "", "", ""]).recurs).toBe("");
+    expect(() => rowToTask([...validRow, "", "", "", "monthly"])).toThrow(RowValidationError);
   });
 
   it("trims whitespace from id, title, status", () => {
@@ -235,6 +242,7 @@ describe("taskToRow", () => {
       dueDate: "2026-07-21",
       tags: ["errand", "home"],
       blockedUntil: "",
+      recurs: "",
     };
     expect(rowToTask(taskToRow(task))).toEqual(task);
   });
@@ -252,6 +260,7 @@ describe("taskToRow", () => {
       dueDate: "",
       tags: [],
       blockedUntil: "Trip done",
+      recurs: "",
     };
     expect(rowToTask(taskToRow(task))).toEqual(task);
   });
@@ -269,6 +278,7 @@ describe("taskToRow", () => {
       dueDate: "2026-07-21",
       tags: ["errand", "home"],
       blockedUntil: "",
+      recurs: "yearly",
     };
     expect(taskToRow(task)).toEqual([
       "id1",
@@ -282,6 +292,7 @@ describe("taskToRow", () => {
       "2026-07-21",
       "errand, home",
       "",
+      "yearly",
     ]);
   });
 });

@@ -1,10 +1,31 @@
-/** A task's column in the board. Order here is display order, left to right. */
-export const STATUSES = ["backlog", "in_progress", "done"] as const;
+/**
+ * A task's column in the board. Order here is display order, left to right.
+ * The last two are the *hidden* columns (long-horizon buckets like document
+ * renewals) — clients may fold them away by default; the data model treats
+ * every status the same.
+ */
+export const STATUSES = [
+  "backlog",
+  "in_progress",
+  "blocked",
+  "done",
+  "admin_renewals",
+  "health_checks",
+] as const;
 
 export type Status = (typeof STATUSES)[number];
 
 export function isStatus(value: unknown): value is Status {
   return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
+}
+
+/** How a task repeats. Completing a "yearly" task re-dates it instead of finishing it. */
+export const RECURRENCES = ["", "yearly"] as const;
+
+export type Recurrence = (typeof RECURRENCES)[number];
+
+export function isRecurrence(value: unknown): value is Recurrence {
+  return typeof value === "string" && (RECURRENCES as readonly string[]).includes(value);
 }
 
 /** Who created the task. Informational only — never used for authorization. */
@@ -34,6 +55,8 @@ export interface Task {
   blockedUntil: string;
   /** Free-form labels. Stored comma-separated in the sheet, so names can't contain commas. */
   tags: string[];
+  /** `"yearly"` re-dates the task on completion instead of finishing it; `""` = one-off. */
+  recurs: Recurrence;
 }
 
 /** A raw row of string cells as returned by the Sheets API (already A:J sliced). */

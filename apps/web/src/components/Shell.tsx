@@ -179,9 +179,23 @@ function BoardShell({
         tasks={tasks}
         token={token}
         readOnly={readOnly}
-        onAdd={(status, input) => void addTask({ ...input, status })}
+        // A task created already waiting on something starts in Blocked, not
+        // the column whose composer happened to be open.
+        onAdd={(status, input) => void addTask({ ...input, status: input.blockedUntil ? "blocked" : status })}
         onMove={(id, status, dropIndex) => void moveTask(id, status, dropIndex)}
-        onEdit={(id, patch) => void updateTask(id, patch)}
+        onEdit={(id, patch) => {
+          void updateTask(id, patch);
+          // The Blocked column tracks the schedule: gaining a blocked-until
+          // moves the task there; losing it (cleared, or swapped for a due
+          // date) releases it back to Backlog. Done tasks are left alone.
+          const current = tasks.find((t) => t.id === id);
+          if (!current || current.status === "done") return;
+          if (patch.blockedUntil && current.status !== "blocked") {
+            void moveTask(id, "blocked", 0);
+          } else if (patch.blockedUntil === "" && current.status === "blocked") {
+            void moveTask(id, "backlog", 0);
+          }
+        }}
         onDelete={(id) => void deleteTask(id)}
       />
 

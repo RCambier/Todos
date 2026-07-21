@@ -15,6 +15,7 @@ function task(id: string, overrides: Partial<Task> = {}): Task {
     dueDate: "",
     blockedUntil: "",
     tags: [],
+    recurs: "",
     ...overrides,
   };
 }
@@ -68,6 +69,13 @@ describe("applyPending", () => {
     const out = applyPending([task("a")], [{ kind: "move", id: "a", status: "done", sortOrder: -3, at: AT }]);
     expect(out[0]!.status).toBe("done");
     expect(out[0]!.sortOrder).toBe(-3);
+  });
+
+  it("completing a yearly dated task in the projection re-dates it, like the real write will", () => {
+    const yearly = task("a", { recurs: "yearly", dueDate: "2026-03-01", status: "health_checks" });
+    const out = applyPending([yearly], [{ kind: "move", id: "a", status: "done", sortOrder: 0, at: AT }]);
+    expect(out[0]!.status).toBe("health_checks"); // stays put
+    expect(out[0]!.dueDate).toBe("2027-03-01"); // AT is 2026-07-19 → next 1 Mar is 2027
   });
 
   it("removes a deleted task", () => {

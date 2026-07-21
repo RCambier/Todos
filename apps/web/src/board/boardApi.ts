@@ -6,6 +6,7 @@ import {
   moveTask,
   updateTask,
   type ParseResult,
+  type Recurrence,
   type Status,
   type Task,
 } from "@memoria/sheet-core";
@@ -56,7 +57,14 @@ export function editTask(
   token: string,
   spreadsheetId: string,
   id: string,
-  patch: { title?: string; notes?: string; dueDate?: string; blockedUntil?: string; tags?: string[] },
+  patch: {
+    title?: string;
+    notes?: string;
+    dueDate?: string;
+    blockedUntil?: string;
+    tags?: string[];
+    recurs?: Recurrence;
+  },
 ): Promise<Task> {
   return updateTask(store(token, spreadsheetId), id, patch);
 }

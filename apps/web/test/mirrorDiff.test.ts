@@ -17,6 +17,7 @@ function task(id: string, overrides: Partial<Task> = {}): Task {
     dueDate: "2026-07-21",
     tags: [],
     blockedUntil: "",
+    recurs: "" as const,
     ...overrides,
   };
 }

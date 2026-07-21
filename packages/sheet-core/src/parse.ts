@@ -78,6 +78,9 @@ function fieldErrorMessage(row: number, err: RowValidationError): SheetError {
     case "due_date":
       message = `Row ${row}: due_date "${value}" isn't a YYYY-MM-DD date (leave it empty for no due date).`;
       break;
+    case "recurs":
+      message = `Row ${row}: recurs "${value}" isn't supported — use "yearly" or leave it empty.`;
+      break;
     default:
       message = `Row ${row}: ${column} "${value}" is invalid.`;
   }

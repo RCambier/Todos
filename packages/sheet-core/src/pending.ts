@@ -1,5 +1,5 @@
-import { mergeSchedule } from "./schedule.js";
-import type { Status, Task } from "./types.js";
+import { mergeSchedule, resolveMove } from "./schedule.js";
+import type { Recurrence, Status, Task } from "./types.js";
 
 /**
  * The local-first layer's vocabulary: a **pending op** is a mutation the user
@@ -19,7 +19,14 @@ export type PendingOp =
   | {
       kind: "edit";
       id: string;
-      patch: { title?: string; notes?: string; dueDate?: string; blockedUntil?: string; tags?: string[] };
+      patch: {
+        title?: string;
+        notes?: string;
+        dueDate?: string;
+        blockedUntil?: string;
+        tags?: string[];
+        recurs?: Recurrence;
+      };
       /** ISO timestamp of the local edit — becomes `updatedAt` in the projection. */
       at: string;
     }
@@ -50,14 +57,22 @@ export function applyPending(tasks: readonly Task[], ops: readonly PendingOp[]):
         // disagrees with what the flushed write will produce.
         Object.assign(t, mergeSchedule(t, op.patch));
         if (op.patch.tags !== undefined) t.tags = [...op.patch.tags];
+        if (op.patch.recurs !== undefined) t.recurs = op.patch.recurs;
         t.updatedAt = op.at;
         break;
       }
       case "move": {
         const t = result.find((x) => x.id === op.id);
         if (!t) break;
-        t.status = op.status;
-        t.sortOrder = op.sortOrder;
+        // Same recurrence rule as board.moveTask: completing a yearly task
+        // re-dates it in place, so the projection matches the flushed write.
+        const { redated } = resolveMove(t, op.status, op.at.slice(0, 10));
+        if (redated) {
+          Object.assign(t, mergeSchedule(t, redated));
+        } else {
+          t.status = op.status;
+          t.sortOrder = op.sortOrder;
+        }
         t.updatedAt = op.at;
         break;
       }
@@ -105,6 +120,7 @@ export function enqueueOp(ops: readonly PendingOp[], op: PendingOp): PendingOp[]
             notes: op.patch.notes ?? add.task.notes,
             ...mergeSchedule(add.task, op.patch),
             tags: op.patch.tags ? [...op.patch.tags] : add.task.tags,
+            recurs: op.patch.recurs ?? add.task.recurs,
             updatedAt: op.at,
           },
         };

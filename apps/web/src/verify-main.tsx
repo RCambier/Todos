@@ -70,6 +70,7 @@ function task(id: string, title: string, status: Task["status"], dueDate = "", t
     updatedAt: now,
     dueDate,
     blockedUntil: "",
+    recurs: "" as const,
     tags,
   };
 }

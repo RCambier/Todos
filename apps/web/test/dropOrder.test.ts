@@ -14,6 +14,7 @@ function task(id: string, sortOrder: number): Task {
     updatedAt: "2026-01-01T00:00:00.000Z",
     dueDate: "",
     blockedUntil: "",
+    recurs: "" as const,
     tags: [],
   };
 }

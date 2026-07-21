@@ -25,6 +25,7 @@ export const HEADERS = [
   "due_date",
   "tags",
   "blocked_until",
+  "recurs",
 ] as const;
 
 /** The A1 range covering the whole tab (header + data). */
@@ -32,15 +33,17 @@ export const SHEET_RANGE = `${SHEET_TAB_NAME}!A:${String.fromCharCode(64 + HEADE
 
 /**
  * Every previous generation of the header, oldest first: the original
- * 8-column shape (before `due_date` and `tags`) and the 10-column shape
- * (before `blocked_until`). Sheets with one of these headers still parse —
- * the missing fields are just empty — and the web app extends the header in
- * place (an additive, non-destructive write of the new header cells) the
- * first time it loads one.
+ * 8-column shape (before `due_date` and `tags`), the 10-column shape
+ * (before `blocked_until`), and the 11-column shape (before `recurs`).
+ * Sheets with one of these headers still parse — the missing fields are
+ * just empty — and the web app extends the header in place (an additive,
+ * non-destructive write of the new header cells) the first time it loads
+ * one.
  */
 export const LEGACY_HEADER_SHAPES: readonly (readonly string[])[] = [
   HEADERS.slice(0, 8),
   HEADERS.slice(0, 10),
+  HEADERS.slice(0, 11),
 ];
 
 /** Google Drive `appProperties` key used to tag spreadsheets created by this app. */

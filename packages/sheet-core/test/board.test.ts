@@ -67,6 +67,48 @@ describe("listTasks", () => {
   });
 });
 
+describe("yearly recurrence on complete", () => {
+  function datedRow(id: string, dueDate: string, recurs = "yearly"): string[] {
+    return [...row(id, `Task ${id}`, "health_checks", 1), dueDate, "", "", recurs];
+  }
+
+  it("completing a yearly task re-dates it a year ahead and keeps its column", async () => {
+    const future = `${new Date().getFullYear() + 1}-03-01`;
+    const store = new FakeSheetStore([datedRow("a", future)]);
+    const task = await board.completeTask(store, "a");
+    expect(task.status).toBe("health_checks"); // not done
+    expect(task.dueDate).toBe(`${new Date().getFullYear() + 2}-03-01`);
+  });
+
+  it("a long-overdue yearly task lands in the future, not last year", async () => {
+    const store = new FakeSheetStore([datedRow("a", "2020-03-01")]);
+    const task = await board.completeTask(store, "a");
+    expect(task.dueDate > new Date().toISOString().slice(0, 10)).toBe(true);
+    expect(task.dueDate.endsWith("-03-01")).toBe(true);
+  });
+
+  it("a yearly task with a dated blocked-until advances that instead", async () => {
+    const future = `${new Date().getFullYear() + 1}-06-15`;
+    const store = new FakeSheetStore([[...row("a", "Task a", "backlog", 1), "", "", future, "yearly"]]);
+    const task = await board.completeTask(store, "a");
+    expect(task.status).toBe("backlog");
+    expect(task.blockedUntil).toBe(`${new Date().getFullYear() + 2}-06-15`);
+  });
+
+  it("a yearly task with no date completes normally", async () => {
+    const store = new FakeSheetStore([[...row("a", "Task a", "backlog", 1), "", "", "", "yearly"]]);
+    const task = await board.completeTask(store, "a");
+    expect(task.status).toBe("done");
+  });
+
+  it("moves that aren't to done ignore recurrence", async () => {
+    const store = new FakeSheetStore([datedRow("a", "2030-03-01")]);
+    const task = await board.moveTask(store, "a", "in_progress");
+    expect(task.status).toBe("in_progress");
+    expect(task.dueDate).toBe("2030-03-01");
+  });
+});
+
 describe("appendTaskIfAbsent (replay safety)", () => {
   it("appends a task that isn't on the sheet yet", async () => {
     const store = new FakeSheetStore();

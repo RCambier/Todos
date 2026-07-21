@@ -2,10 +2,10 @@ import { assertCellLimits, locateRowById, type SheetError } from "./grid.js";
 import { generateId } from "./id.js";
 import { boardOrder, topSortOrder } from "./ordering.js";
 import { parseSheet, type ParseResult } from "./parse.js";
-import { mergeSchedule } from "./schedule.js";
+import { mergeSchedule, resolveMove } from "./schedule.js";
 import { taskToRow } from "./serialize.js";
 import type { SheetStore } from "./store.js";
-import { STATUSES, type Source, type Status, type Task } from "./types.js";
+import { STATUSES, type Recurrence, type Source, type Status, type Task } from "./types.js";
 
 /**
  * The board operations — the ONE implementation of the write-safety
@@ -64,6 +64,7 @@ export interface NewTaskInput {
   dueDate?: string;
   blockedUntil?: string;
   tags?: string[];
+  recurs?: Recurrence;
 }
 
 /** Pure: builds the `Task` for a new entry, given the sort orders already in its column. */
@@ -81,6 +82,7 @@ export function buildTask(columnOrders: readonly number[], input: NewTaskInput, 
     updatedAt: now,
     ...mergeSchedule({ dueDate: "", blockedUntil: "" }, input),
     tags: input.tags ?? [],
+    recurs: input.recurs ?? "",
   };
 }
 
@@ -128,7 +130,14 @@ export async function addTask(store: SheetStore, input: NewTaskInput, source: So
 export async function updateTask(
   store: SheetStore,
   id: string,
-  patch: { title?: string; notes?: string; dueDate?: string; blockedUntil?: string; tags?: string[] },
+  patch: {
+    title?: string;
+    notes?: string;
+    dueDate?: string;
+    blockedUntil?: string;
+    tags?: string[];
+    recurs?: Recurrence;
+  },
 ): Promise<Task> {
   assertCellLimits({ title: patch.title, notes: patch.notes });
   const { tasks, rawRows } = await readValidTasks(store);
@@ -141,6 +150,7 @@ export async function updateTask(
     notes: patch.notes ?? current.notes,
     ...mergeSchedule(current, patch),
     tags: patch.tags ?? current.tags,
+    recurs: patch.recurs ?? current.recurs,
     updatedAt: new Date().toISOString(),
   };
   const rowNumber = locateRow(rawRows, id);
@@ -152,6 +162,9 @@ export async function updateTask(
  * Moves a task to `status`. With an explicit `sortOrder` (the web app's drag
  * position) it lands exactly there; without one (the MCP tools) it lands at
  * the top of the destination column.
+ *
+ * Recurrence: completing a `yearly` task that carries a date re-dates it one
+ * year ahead and leaves it in its column (see `resolveMove` in schedule.ts).
  */
 export async function moveTask(
   store: SheetStore,
@@ -163,15 +176,18 @@ export async function moveTask(
   const current = tasks.find((t) => t.id === id);
   if (!current) throw new TaskNotFoundError(id);
 
-  const resolvedSortOrder =
-    sortOrder ??
-    topSortOrder(tasks.filter((t) => t.status === status && t.id !== id).map((t) => t.sortOrder));
-  const updated: Task = {
-    ...current,
-    status,
-    sortOrder: resolvedSortOrder,
-    updatedAt: new Date().toISOString(),
-  };
+  const now = new Date();
+  const { redated } = resolveMove(current, status, now.toISOString().slice(0, 10));
+  const updated: Task = redated
+    ? { ...current, ...mergeSchedule(current, redated), updatedAt: now.toISOString() }
+    : {
+        ...current,
+        status,
+        sortOrder:
+          sortOrder ??
+          topSortOrder(tasks.filter((t) => t.status === status && t.id !== id).map((t) => t.sortOrder)),
+        updatedAt: now.toISOString(),
+      };
   const rowNumber = locateRow(rawRows, id);
   await store.updateRow(rowNumber, taskToRow(updated));
   return updated;
