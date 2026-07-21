@@ -12,6 +12,7 @@ import { Linkify } from "../lib/linkify.js";
 import { STATUS_LABEL, STATUS_PILL_CLASS } from "../lib/statusMeta.js";
 import { useAutoGrow } from "../lib/useAutoGrow.js";
 import { uploadTaskAttachment } from "../notes/attachments.js";
+import { AgentMark } from "./AgentMark.js";
 import { TagsEditor } from "./TagsEditor.js";
 
 /** What the dialog opens onto. "edit" just focuses the title — every field is
@@ -198,7 +199,9 @@ export function TaskDetail({
             <div>
               <dt>Source</dt>
               <dd>
-                <span className="chip">✳ agent</span>
+                <span className="chip">
+                  <AgentMark /> agent
+                </span>
               </dd>
             </div>
           )}

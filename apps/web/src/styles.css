@@ -1325,35 +1325,6 @@ kbd {
   justify-content: space-between;
   gap: 12px;
 }
-/* Section switcher — a quiet segmented control so the two concerns are
-   clearly separate views, never one long scroll reached from two menu items. */
-.settings-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  background: var(--bg-subtle);
-  border-radius: 9px;
-}
-.settings-tab {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--ink-muted);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 6px 10px;
-  border-radius: 7px;
-  cursor: pointer;
-}
-.settings-tab:hover {
-  color: var(--ink);
-}
-.settings-tab.active {
-  background: var(--bg);
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
 .settings-body {
   display: flex;
   flex-direction: column;
@@ -2196,6 +2167,9 @@ kbd {
   gap: 6px;
 }
 .notes-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-muted);

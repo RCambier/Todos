@@ -3,6 +3,7 @@ import { useState } from "react";
 import { formatShortDate } from "../lib/dates.js";
 import { noteImages, type NoteImage } from "../lib/noteImages.js";
 import { AddFab } from "./AddFab.js";
+import { AgentMark } from "./AgentMark.js";
 import { DriveImage, Markdown } from "./Markdown.js";
 
 /** The grid's provenance filter — design 5a's chip row. */
@@ -68,7 +69,7 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate }: NotesGri
             className={`notes-filter${filter === "agent" ? " active" : ""}`}
             onClick={() => setFilter("agent")}
           >
-            ✳ By agents
+            <AgentMark /> By agents
           </button>
         </div>
       </div>
@@ -115,7 +116,11 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate }: NotesGri
                     <span className="note-card-body empty">Empty note</span>
                   )}
                   <span className="note-card-meta">
-                    {note.source === "agent" && <span className="chip">✳ agent</span>}
+                    {note.source === "agent" && (
+                      <span className="chip">
+                        <AgentMark /> agent
+                      </span>
+                    )}
                     <span className="note-card-date">Edited {editedLabel(note)}</span>
                   </span>
                 </div>

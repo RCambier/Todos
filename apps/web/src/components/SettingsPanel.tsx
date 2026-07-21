@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { buildClaudeCodeCliSnippet, buildConnectorUrl } from "../lib/mcpSnippet.js";
+import { AgentMark } from "./AgentMark.js";
 
 /** The calendar-mirror control, present only where the auth backend can drive it (the board view). */
 interface CalendarMirror {
@@ -9,12 +10,12 @@ interface CalendarMirror {
 }
 
 interface SettingsPanelProps {
+  /** Which drawer this is — each account-menu entry opens its own. */
+  section: "agents" | "calendar";
   onClose: () => void;
-  /** Null on deployments/views without the mirror — then Settings has only the AI-agents section. */
+  /** Null on deployments/views without the mirror — the calendar drawer then points to the Todos view. */
   calendarMirror: CalendarMirror | null;
 }
-
-type SettingsTab = "agents" | "calendar";
 
 /** Copies `value` to the clipboard, showing a transient "Copied" confirmation. */
 function CopyButton({ value }: { value: string }) {
@@ -39,14 +40,12 @@ function CopyButton({ value }: { value: string }) {
 }
 
 /**
- * The Settings drawer. One entry point (the account menu's "Settings"),
- * split into sections shown one at a time via a tab switcher — never two
- * menu items landing on the same scroll of one long page. "AI agents" is
- * always present; "Google Calendar" appears only where the mirror can run.
+ * A settings drawer. Two account-menu entries — "Connect with AI agents" and
+ * "Sync with Google Calendar" — each open their own drawer showing exactly
+ * one section; there are no tabs inside.
  */
-export function SettingsPanel({ onClose, calendarMirror }: SettingsPanelProps) {
-  const [tab, setTab] = useState<SettingsTab>("agents");
-  const showCalendarTab = calendarMirror !== null;
+export function SettingsPanel({ section, onClose, calendarMirror }: SettingsPanelProps) {
+  const title = section === "agents" ? "Connect with AI agents" : "Sync with Google Calendar";
 
   // Escape closes, like every other overlay in the app.
   useEffect(() => {
@@ -63,41 +62,17 @@ export function SettingsPanel({ onClose, calendarMirror }: SettingsPanelProps) {
         className="settings-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Settings"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="settings-head">
-          <h2 className="settings-title">Settings</h2>
+          <h2 className="settings-title">{title}</h2>
           <button className="close" aria-label="Close settings" onClick={onClose}>
             ×
           </button>
         </div>
 
-        {showCalendarTab && (
-          <div className="settings-tabs" role="tablist" aria-label="Settings sections">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "agents"}
-              className={`settings-tab${tab === "agents" ? " active" : ""}`}
-              onClick={() => setTab("agents")}
-            >
-              AI agents
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "calendar"}
-              className={`settings-tab${tab === "calendar" ? " active" : ""}`}
-              onClick={() => setTab("calendar")}
-            >
-              Google Calendar
-            </button>
-          </div>
-        )}
-
-        {tab === "agents" && <AgentsSection />}
-        {tab === "calendar" && calendarMirror && <CalendarSection mirror={calendarMirror} />}
+        {section === "agents" ? <AgentsSection /> : <CalendarSection mirror={calendarMirror} />}
       </div>
     </div>
   );
@@ -157,8 +132,9 @@ function AgentsSection() {
         </h4>
         <p className="step-desc">
           Ask your agent about your board — &ldquo;what&rsquo;s in progress?&rdquo; — let a routine file and
-          complete tasks, or have it leave a note in Notes. Anything agents create carries a small ✳ chip
-          here. Revoke access anytime from your Google account&rsquo;s third-party access page.
+          complete tasks, or have it leave a note in Notes. Anything agents create carries a small{" "}
+          <AgentMark size={11} /> chip here. Revoke access anytime from your Google account&rsquo;s
+          third-party access page.
         </p>
       </div>
     </section>
@@ -166,7 +142,22 @@ function AgentsSection() {
 }
 
 /** The one-way Google Tasks / Calendar mirror toggle. */
-function CalendarSection({ mirror }: { mirror: CalendarMirror }) {
+function CalendarSection({ mirror }: { mirror: CalendarMirror | null }) {
+  if (!mirror) {
+    return (
+      <section className="settings-body" aria-label="Google Calendar sync">
+        <p className="settings-intro">
+          Mirror tasks that have a due date into a &ldquo;Memoria&rdquo; Google Tasks list — they show up in
+          Google Calendar on their due date.
+        </p>
+        <p className="settings-intro">
+          The sync toggle lives on the board — switch to the <strong>Todos</strong> tab and open this menu
+          entry again to turn it on.
+        </p>
+      </section>
+    );
+  }
+
   const status = !mirror.enabled
     ? "Off"
     : mirror.hasScope

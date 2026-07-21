@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatFullDate } from "../lib/dates.js";
 import { MAX_CELL_CHARS } from "@memoria/sheet-core";
 import { isAttachableImage, uploadNoteAttachment } from "../notes/attachments.js";
+import { AgentMark } from "./AgentMark.js";
 import { Markdown } from "./Markdown.js";
 
 type EditorMode = "view" | "edit" | "confirm";
@@ -233,7 +234,11 @@ export function NoteEditor({
       >
         <div className="detail-head">
           <span className="note-head-meta">
-            {agent && <span className="chip">✳ agent</span>}
+            {agent && (
+              <span className="chip">
+                <AgentMark /> agent
+              </span>
+            )}
             <span className="note-head-date">Updated {formatFullDate(note.updatedAt)}</span>
             {uploads > 0 && <span className="note-uploading">Uploading…</span>}
           </span>

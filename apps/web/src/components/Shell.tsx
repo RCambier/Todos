@@ -40,6 +40,9 @@ interface ShellProps {
   onSignOut: () => void;
 }
 
+/** Which settings drawer is open — each account-menu entry opens its own. */
+type SettingsSection = "agents" | "calendar";
+
 /** Chooses the view for the active kind. Empty (no sheet) → inline setup; otherwise the board or notes view. */
 export function Shell(props: ShellProps) {
   if (!props.spreadsheetId) return <EmptyShell {...props} />;
@@ -58,8 +61,8 @@ function EmptyShell({
   onSheetReady,
   onSignOut,
 }: ShellProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  useBackClose(settingsOpen, () => setSettingsOpen(false));
+  const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
+  useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
 
   return (
     <div className="app">
@@ -73,7 +76,7 @@ function EmptyShell({
         activeKind={kind}
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={setSettingsOpen}
         onSignOut={onSignOut}
       />
 
@@ -85,7 +88,9 @@ function EmptyShell({
         <KindEmpty token={token} kind={kind} extras={extras} onSheetReady={onSheetReady} />
       )}
 
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} calendarMirror={null} />}
+      {settingsOpen && (
+        <SettingsPanel section={settingsOpen} onClose={() => setSettingsOpen(null)} calendarMirror={null} />
+      )}
     </div>
   );
 }
@@ -112,8 +117,8 @@ function BoardShell({
     moveTask,
     deleteTask,
   } = useBoard(token, spreadsheetId);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  useBackClose(settingsOpen, () => setSettingsOpen(false));
+  const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
+  useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
   const [mirrorEnabled, setMirrorEnabled] = useState(getCalendarMirrorEnabled);
 
   const readOnly = state.status !== "ready";
@@ -146,7 +151,7 @@ function BoardShell({
         activeKind="board"
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={setSettingsOpen}
         onSignOut={onSignOut}
       />
 
@@ -182,7 +187,8 @@ function BoardShell({
 
       {settingsOpen && (
         <SettingsPanel
-          onClose={() => setSettingsOpen(false)}
+          section={settingsOpen}
+          onClose={() => setSettingsOpen(null)}
           calendarMirror={
             calendarMirrorAvailable
               ? { enabled: mirrorEnabled, hasScope: hasTasksScope, onToggle: handleMirrorToggle }
@@ -205,10 +211,10 @@ function NotesShell({
 }: ShellProps) {
   const { state, lastSyncedAt, offline, pendingCount, writeRejected, addNote, updateNote, deleteNote } =
     useNotes(token, spreadsheetId);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
   // The open note, if any — looked up live so a sync refreshes the dialog.
   const [open, setOpen] = useState<{ id: string; isNew: boolean } | null>(null);
-  useBackClose(settingsOpen, () => setSettingsOpen(false));
+  useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
   useBackClose(open !== null, () => setOpen(null));
 
   const readOnly = state.status !== "ready";
@@ -232,7 +238,7 @@ function NotesShell({
         activeKind="notes"
         connectedKinds={connectedKinds}
         onSelectKind={onSelectKind}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={setSettingsOpen}
         onSignOut={onSignOut}
       />
 
@@ -277,8 +283,10 @@ function NotesShell({
       )}
 
       {/* The calendar mirror is a board concern (it mirrors due-dated tasks);
-          from the notes view Settings shows only the agents section. */}
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} calendarMirror={null} />}
+          from the notes view the calendar drawer points back to the Todos tab. */}
+      {settingsOpen && (
+        <SettingsPanel section={settingsOpen} onClose={() => setSettingsOpen(null)} calendarMirror={null} />
+      )}
     </div>
   );
 }

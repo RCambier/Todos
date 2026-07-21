@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CollectionKind } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
+import { AgentMark } from "./AgentMark.js";
 import { Logo } from "./Logo.js";
 
 /** Sync status shape shared by the board and notes views. */
@@ -27,7 +28,7 @@ interface TopbarProps {
   /** Which kinds have a connected sheet — a kind without one routes to setup on click. */
   connectedKinds: Record<CollectionKind, boolean>;
   onSelectKind: (kind: CollectionKind) => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (section: "agents" | "calendar") => void;
   onSignOut: () => void;
 }
 
@@ -59,17 +60,12 @@ function SheetIcon() {
   );
 }
 
-/** Gear glyph for the single "Settings" entry that opens the settings drawer. */
-function GearIcon() {
+/** Calendar glyph for the "Sync with Google Calendar" menu entry. */
+function CalendarIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.1" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M8 1.6v1.7M8 12.7v1.7M14.4 8h-1.7M3.3 8H1.6M12.5 3.5l-1.2 1.2M4.7 11.3l-1.2 1.2M12.5 12.5l-1.2-1.2M4.7 4.7 3.5 3.5"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
+      <rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1.5 6.5h13M5 1.5v3M11 1.5v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
@@ -152,10 +148,20 @@ function AccountMenu({
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              onOpenSettings();
+              onOpenSettings("agents");
             }}
           >
-            <GearIcon /> Settings
+            <AgentMark size={14} /> Connect with AI agents
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onOpenSettings("calendar");
+            }}
+          >
+            <CalendarIcon /> Sync with Google Calendar
           </button>
           <div className="menu-divider" />
           <button
