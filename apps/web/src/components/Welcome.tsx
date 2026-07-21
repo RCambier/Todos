@@ -8,7 +8,8 @@ interface WelcomeProps {
 /**
  * The logged-out landing screen — design 3d "Connect": one headline, one
  * button, one trust line, and the layer diagram (agent cursors → cards →
- * your sheet) as the pitch.
+ * your sheet) as the pitch, followed by a four-card feature band and a
+ * closing no-lock-in line.
  */
 export function Welcome({ error, onConnect }: WelcomeProps) {
   return (
@@ -36,6 +37,53 @@ export function Welcome({ error, onConnect }: WelcomeProps) {
       </p>
 
       <HeroScene />
+
+      <FeatureBand />
+
+      <p className="welcome-freedom">
+        You own the sheet, so you're never locked in — stop using Memoria any
+        day and your data is still just a spreadsheet in your Drive.
+      </p>
+    </div>
+  );
+}
+
+/** The four claims the hero scene shows but never names, spelled out. */
+function FeatureBand() {
+  return (
+    <div className="welcome-features">
+      <div className="feature-card">
+        <FreeGlyph />
+        <span className="feature-title">Free &amp; open source</span>
+        <p className="feature-body">
+          No plans, no paywalls. Use the hosted app or deploy your own fork in
+          about 15 minutes.
+        </p>
+      </div>
+      <div className="feature-card">
+        <SheetsGlyph size={20} />
+        <span className="feature-title">Your data is a Google Sheet</span>
+        <p className="feature-body">
+          The only backend is a spreadsheet in your own Drive. No servers, no
+          database, nothing stored about you.
+        </p>
+      </div>
+      <div className="feature-card">
+        <BoardGlyph />
+        <span className="feature-title">A board for you</span>
+        <p className="feature-body">
+          Kanban todos, markdown notes, and AI memories — a fast, human-friendly
+          UI over the sheet.
+        </p>
+      </div>
+      <div className="feature-card">
+        <AgentGlyph />
+        <span className="feature-title">MCP for your agents</span>
+        <p className="feature-body">
+          Claude, Codex, or any MCP client reads and writes the same sheet
+          through the built-in connector.
+        </p>
+      </div>
     </div>
   );
 }
@@ -51,14 +99,59 @@ function DriveGlyph() {
   );
 }
 
-/** Google-Sheets-style file tile for the mock sheet's header. */
-function SheetsGlyph() {
+/** Google-Sheets-style file tile for the mock sheet's header and feature band. */
+function SheetsGlyph({ size = 15 }: { size?: number }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <rect x="3" y="2" width="18" height="20" rx="2.5" fill="#188038" />
       <rect x="6.5" y="10" width="11" height="8" rx="1" fill="#fff" />
       <line x1="6.5" y1="14" x2="17.5" y2="14" stroke="#188038" strokeWidth="1.2" />
       <line x1="12" y1="10" x2="12" y2="18" stroke="#188038" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+/** A zero-dollar price tag: free, with nothing hiding behind it. */
+function FreeGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3.5 4.5 A1.5 1.5 0 0 1 5 3 h6.3 a2 2 0 0 1 1.4.6 l7.2 7.2 a2 2 0 0 1 0 2.8 l-6.3 6.3 a2 2 0 0 1-2.8 0 L3.6 12.7 A2 2 0 0 1 3 11.3 Z"
+        fill="var(--status-done-dot)"
+      />
+      <circle cx="7.6" cy="7.6" r="1.5" fill="#fff" />
+      <text x="13.4" y="16.4" textAnchor="middle" fontSize="8" fontWeight="700" fill="#fff">
+        0
+      </text>
+    </svg>
+  );
+}
+
+/** A tiny three-column kanban board — the human side of the sheet. */
+function BoardGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="2.5" y="3" width="19" height="18" rx="2.5" fill="var(--accent)" />
+      <rect x="5" y="6" width="4.2" height="9" rx="1" fill="#fff" opacity="0.92" />
+      <rect x="9.9" y="6" width="4.2" height="12" rx="1" fill="#fff" opacity="0.92" />
+      <rect x="14.8" y="6" width="4.2" height="6.5" rx="1" fill="#fff" opacity="0.92" />
+    </svg>
+  );
+}
+
+/** The agent cursor from the hero scene, promoted to a feature icon. */
+function AgentGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 3 L20 11 L12.5 12.8 L9 20 Z"
+        fill="var(--warn)"
+        stroke="var(--card)"
+        strokeWidth="1.5"
+      />
+      <text x="18.5" y="21.5" textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--warn)">
+        ✳
+      </text>
     </svg>
   );
 }
