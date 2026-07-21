@@ -127,7 +127,22 @@ React + TypeScript + Vite static SPA. No backend of any kind.
   boards' mirrors are never touched; done tasks complete their mirror but
   never create one. Runs from the board loop (immediately on change,
   periodically for drift), silent on failure — the board never depends on
-  it.
+  it. The toggle itself lives in the Settings sheet (below), so enabling the
+  mirror on one device enables it everywhere.
+- **App settings live in Drive, not the browser**: a small `Settings`
+  spreadsheet (one key/value tab, `sheet-core/settings.ts`) at the top of the
+  `Memoria/` folder, tagged `memoriaSettings` so any device finds it and it
+  never appears in the collections listing. Created lazily the first time a
+  setting is changed; an absent sheet or key just means "default". Today it
+  holds one key, `calendar_mirror`; a pre-existing localStorage flag is
+  migrated in once. localStorage remains for pure *caches* (replica, outbox,
+  connected-sheet ids) — things that are per-device by nature.
+- **Warn-on-edit protection**: every tab the app creates gets a whole-tab
+  protected range with `warningOnly`, so hand-editing in the Sheets UI shows
+  an "are you sure?" dialog while the app's (and the MCP connector's) API
+  writes pass untouched. A hard lock is impossible by construction: the app
+  writes as the same Google user it would be locking out. Best-effort and
+  creation-time only — sheets created before this feature stay unprotected.
 - **Connect from agents panel**: shows the deployment's connector URL and
   ready-made instructions (claude.ai, Claude Code one-liner) — connecting an
   agent is copy-paste plus a Google consent screen, nothing more.

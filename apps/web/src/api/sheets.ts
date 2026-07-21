@@ -158,6 +158,49 @@ export async function renameTab(
   });
 }
 
+/**
+ * A whole-tab protected range with `warningOnly` — Sheets then interposes an
+ * "are you sure?" dialog on manual edits in the Sheets UI, while API writes
+ * (this app, the MCP connector) pass untouched. A hard (non-warning) lock is
+ * not an option: the app writes as the same Google user, so locking the user
+ * out would lock the app out too.
+ */
+function protectRequest(sheetId: number): unknown {
+  return {
+    addProtectedRange: {
+      protectedRange: {
+        range: { sheetId },
+        description: "Managed by Memoria — edit in the app instead of the sheet.",
+        warningOnly: true,
+      },
+    },
+  };
+}
+
+/** Adds the warn-on-manual-edit protection to one tab. */
+export async function protectTab(token: string, spreadsheetId: string, sheetId: number): Promise<void> {
+  await authedFetch(token, `${BASE}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [protectRequest(sheetId)] }),
+  });
+}
+
+/**
+ * Adds the warn-on-manual-edit protection to every tab of a freshly created
+ * spreadsheet, in one batch. Creation-time only — it doesn't check for
+ * existing protections, so calling it twice would stack duplicates.
+ */
+export async function protectAllTabs(token: string, spreadsheetId: string): Promise<void> {
+  const tabs = await listTabs(token, spreadsheetId);
+  if (tabs.length === 0) return;
+  await authedFetch(token, `${BASE}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: tabs.map((t) => protectRequest(t.sheetId)) }),
+  });
+}
+
 /** Fetches the tab's internal numeric sheetId, needed for row deletion. */
 export async function getTabSheetId(
   token: string,

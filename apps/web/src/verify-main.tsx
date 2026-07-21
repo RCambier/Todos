@@ -27,6 +27,8 @@ import {
   NOTES_APP_PROPERTY_KEY,
   NOTES_HEADERS,
   noteToRow,
+  SETTINGS_APP_PROPERTY_KEY,
+  SETTINGS_HEADERS,
   taskToRow,
   type Memory,
   type Note,
@@ -59,6 +61,8 @@ declare global {
     __notesGrid: () => string[][];
     /** The fake backend's current Memories grid (header + rows) — for assertions. */
     __memoriesGrid: () => string[][];
+    /** The fake Settings sheet's grid (header + key/value rows) — for assertions. */
+    __settingsGrid: () => string[][];
   }
 }
 
@@ -181,6 +185,9 @@ const memoriesGrid: string[][] = [
   ),
 ];
 
+// The Settings sheet (calendar-mirror toggle etc.) — starts with no keys set.
+const settingsGrid: string[][] = [[...SETTINGS_HEADERS]];
+
 // A 1×1 red PNG — what attachment downloads return.
 const TINY_PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -197,6 +204,7 @@ window.__sheetWrites = [];
 window.__driveWrites = [];
 window.__grid = () => grid.map((r) => [...r]);
 window.__notesGrid = () => notesGrid.map((r) => [...r]);
+window.__settingsGrid = () => settingsGrid.map((r) => [...r]);
 window.__memoriesGrid = () => memoriesGrid.map((r) => [...r]);
 
 let uploadCounter = 0;
@@ -210,6 +218,7 @@ const allDriveFiles: { id: string; name: string; appProperties: Record<string, s
   { id: "sheet-2", name: "Groceries", appProperties: { todosBoard: "1" } },
   { id: "sheet-3", name: "Notes", appProperties: { [NOTES_APP_PROPERTY_KEY]: "1" } },
   { id: "sheet-4", name: "AI Memories", appProperties: { [MEMORIES_APP_PROPERTY_KEY]: "1" } },
+  { id: "sheet-settings", name: "Settings", appProperties: { [SETTINGS_APP_PROPERTY_KEY]: "1" } },
 ];
 const driveFiles = allDriveFiles.filter((f) =>
   noKind === "notes"
@@ -236,7 +245,13 @@ function rowNumberFromUrl(url: string): number | null {
 /** Which fake grid a values URL addresses (the tab name is in the range). */
 function gridForUrl(url: string): string[][] {
   const decoded = decodeURIComponent(url);
-  return decoded.includes("Memories!") ? memoriesGrid : decoded.includes("Notes!") ? notesGrid : grid;
+  return decoded.includes("Settings!")
+    ? settingsGrid
+    : decoded.includes("Memories!")
+      ? memoriesGrid
+      : decoded.includes("Notes!")
+        ? notesGrid
+        : grid;
 }
 
 const realFetch = window.fetch.bind(window);
@@ -297,9 +312,14 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       }
       return json({ id: "patched" });
     }
+    // Two tag queries hit this listing: the Settings-sheet lookup (its query
+    // names the settings tag) and the collections listing (everything else) —
+    // like production, each only sees its own kind of file.
+    const wantsSettings = decodeURIComponent(url).includes(SETTINGS_APP_PROPERTY_KEY);
     return json({
       files: driveFiles
         .filter((f) => Object.keys(f.appProperties).length > 0)
+        .filter((f) => (f.appProperties[SETTINGS_APP_PROPERTY_KEY] !== undefined) === wantsSettings)
         .map((f) => ({ id: f.id, name: f.name, modifiedTime: now, appProperties: f.appProperties })),
     });
   }
@@ -360,6 +380,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     window.__sheetWrites.push({ method, url, body });
     const payload = body ? (JSON.parse(body) as Record<string, unknown>) : {};
 
+    // clearTab (the first half of overwriteTab — the Settings write path).
+    if (url.includes(":clear")) {
+      gridForUrl(url).length = 0;
+      return json({});
+    }
+
     // createSpreadsheet: a bare POST to the spreadsheets collection. The new
     // sheet joins the fake Drive store (untagged — the tag PATCH follows),
     // so it shows up in later listings exactly like production.
@@ -374,8 +400,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (url.includes(":append")) {
       target.push((payload.values as string[][])[0]!);
     } else if (method === "PUT") {
+      // A range PUT can carry several rows (overwriteTab writes a whole grid).
       const n = rowNumberFromUrl(url);
-      if (n) target[n - 1] = (payload.values as string[][])[0]!;
+      if (n) (payload.values as string[][]).forEach((row, i) => (target[n - 1 + i] = row));
     } else if (url.includes(":batchUpdate")) {
       const requests = payload.requests as
         | { deleteDimension?: { range?: { sheetId?: number; startIndex?: number; endIndex?: number } } }[]

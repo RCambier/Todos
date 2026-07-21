@@ -16,7 +16,8 @@ const ACTIVE_KIND_KEY = "todos:activeKind";
 const REPLICA_KEY_PREFIX = "todos:replica:";
 const OUTBOX_KEY_PREFIX = "todos:outbox:";
 const COLUMNS_KEY_PREFIX = "todos:columns:";
-const CALENDAR_MIRROR_KEY = "todos:calendarMirror";
+/** Pre-settings-sheet key: the calendar-mirror flag used to live here. Read only as a migration source. */
+const LEGACY_CALENDAR_MIRROR_KEY = "todos:calendarMirror";
 const NOTES_REPLICA_KEY_PREFIX = "todos:notes-replica:";
 const NOTES_OUTBOX_KEY_PREFIX = "todos:notes-outbox:";
 const MEMORIES_REPLICA_KEY_PREFIX = "todos:memories-replica:";
@@ -79,14 +80,19 @@ export function setActiveKind(kind: CachedCollectionKind, store: KeyValueStore =
   store.setItem(ACTIVE_KIND_KEY, kind);
 }
 
-/** Whether the user turned on the Google Tasks calendar mirror (Settings). */
-export function getCalendarMirrorEnabled(store: KeyValueStore = localStorage): boolean {
-  return store.getItem(CALENDAR_MIRROR_KEY) === "on";
+/**
+ * The calendar-mirror flag from before it moved to the Settings sheet:
+ * `true`/`false` when the old key is present, `null` when there is nothing
+ * to migrate. Read-only — the caller clears it (below) once the value has
+ * safely landed in the sheet, so a failed migration retries next boot.
+ */
+export function readLegacyCalendarMirrorFlag(store: KeyValueStore = localStorage): boolean | null {
+  const raw = store.getItem(LEGACY_CALENDAR_MIRROR_KEY);
+  return raw === null ? null : raw === "on";
 }
 
-export function setCalendarMirrorEnabled(enabled: boolean, store: KeyValueStore = localStorage): void {
-  if (enabled) store.setItem(CALENDAR_MIRROR_KEY, "on");
-  else store.removeItem(CALENDAR_MIRROR_KEY);
+export function clearLegacyCalendarMirrorFlag(store: KeyValueStore = localStorage): void {
+  store.removeItem(LEGACY_CALENDAR_MIRROR_KEY);
 }
 
 /**

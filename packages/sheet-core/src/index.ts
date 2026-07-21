@@ -34,6 +34,16 @@ export {
   type BoardColumn,
   type ParseColumnsResult,
 } from "./columns.js";
+export {
+  SETTINGS_TAB_NAME,
+  SETTINGS_HEADERS,
+  SETTINGS_APP_PROPERTY_KEY,
+  SETTINGS_APP_PROPERTY_VALUE,
+  CALENDAR_MIRROR_SETTING,
+  parseSettingsSheet,
+  settingsToRows,
+  type AppSettings,
+} from "./settings.js";
 export { nextYearlyDate, resolveMove } from "./schedule.js";
 export { topSortOrder, betweenSortOrder, boardOrder } from "./ordering.js";
 export { taskToRow, isBlankRow, RowValidationError } from "./serialize.js";

@@ -5,6 +5,8 @@ import {
   MEMORIES_APP_PROPERTY_VALUE,
   NOTES_APP_PROPERTY_KEY,
   NOTES_APP_PROPERTY_VALUE,
+  SETTINGS_APP_PROPERTY_KEY,
+  SETTINGS_APP_PROPERTY_VALUE,
 } from "@memoria/sheet-core";
 import { authedFetch, authedJson } from "./http.js";
 
@@ -81,6 +83,32 @@ export async function tagAsNotes(token: string, fileId: string): Promise<void> {
 /** Tags a spreadsheet as a Memoria AI Memories collection. */
 export async function tagAsMemories(token: string, fileId: string): Promise<void> {
   await tagFile(token, fileId, { [MEMORIES_APP_PROPERTY_KEY]: MEMORIES_APP_PROPERTY_VALUE });
+}
+
+/** Tags a spreadsheet as the app's Settings sheet. Its own tag keeps it out of `findCollections`. */
+export async function tagAsSettings(token: string, fileId: string): Promise<void> {
+  await tagFile(token, fileId, { [SETTINGS_APP_PROPERTY_KEY]: SETTINGS_APP_PROPERTY_VALUE });
+}
+
+/**
+ * Finds the app's Settings spreadsheet by its tag, newest-modified first if
+ * two devices ever raced to create one. Null when it doesn't exist yet —
+ * every setting is then at its default, and the sheet is only created the
+ * first time a setting is changed.
+ */
+export async function findSettingsSheet(token: string): Promise<string | null> {
+  const q =
+    `mimeType='${SPREADSHEET_MIME_TYPE}' and trashed=false and ` +
+    `appProperties has { key='${SETTINGS_APP_PROPERTY_KEY}' and value='${SETTINGS_APP_PROPERTY_VALUE}' }`;
+  const params = new URLSearchParams({
+    q,
+    orderBy: "modifiedTime desc",
+    pageSize: "1",
+    fields: "files(id)",
+    spaces: "drive",
+  });
+  const data = await authedJson<{ files?: { id: string }[] }>(token, `${BASE}?${params.toString()}`);
+  return data.files?.[0]?.id ?? null;
 }
 
 /**

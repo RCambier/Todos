@@ -1,5 +1,5 @@
 import { columnsToRows, parseColumnsSheet, type BoardColumn } from "@memoria/sheet-core";
-import { addTab, COLUMNS_TAB, getValues, listTabs, overwriteTab } from "./sheets.js";
+import { addTab, COLUMNS_TAB, getValues, listTabs, overwriteTab, protectTab } from "./sheets.js";
 
 /**
  * Reads a Todos board's `Columns` tab. Returns `null` when the tab doesn't
@@ -27,7 +27,12 @@ export async function writeColumnsTab(
 ): Promise<void> {
   const tabs = await listTabs(token, spreadsheetId);
   if (!tabs.some((t) => t.title === COLUMNS_TAB.name)) {
-    await addTab(token, spreadsheetId, COLUMNS_TAB.name);
+    const sheetId = await addTab(token, spreadsheetId, COLUMNS_TAB.name);
+    try {
+      await protectTab(token, spreadsheetId, sheetId);
+    } catch {
+      // Left unprotected; the warning banner is cosmetic, never load-bearing.
+    }
   }
   await overwriteTab(token, spreadsheetId, COLUMNS_TAB, columnsToRows(columns));
 }
