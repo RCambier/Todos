@@ -7,10 +7,14 @@ import { ColumnsSettings } from "./ColumnsSettings.js";
 
 /** The calendar-mirror control, present only where the auth backend can drive it (the board view). */
 interface CalendarMirror {
+  /** False while the Settings sheet is still being read — the toggle waits. */
+  ready: boolean;
   enabled: boolean;
   hasScope: boolean;
   /** What the mirror is actually doing — so a failure is never silent. */
   status: MirrorStatus;
+  /** Set when the last toggle couldn't be saved to the Settings sheet. */
+  saveError: string | null;
   onToggle: () => void;
 }
 
@@ -198,6 +202,7 @@ function AgentsSection() {
 
 /** One-line summary of what the mirror is doing right now. */
 function mirrorSummary(mirror: CalendarMirror): string {
+  if (!mirror.ready) return "Checking your settings…";
   if (!mirror.enabled) return "Off";
   if (!mirror.hasScope) return "Waiting for Google permission — toggle again to finish connecting";
   switch (mirror.status.state) {
@@ -248,12 +253,16 @@ function CalendarSection({ mirror }: { mirror: CalendarMirror | null }) {
           role="switch"
           aria-checked={mirror.enabled}
           className={`mirror-toggle${mirror.enabled ? " on" : ""}`}
+          disabled={!mirror.ready}
           onClick={mirror.onToggle}
         >
           <span className="knob" />
         </button>
         <span className="mirror-status">{mirrorSummary(mirror)}</span>
       </div>
+      {mirror.saveError && (
+        <p className="mirror-error">Couldn&rsquo;t save this setting to Google Drive: {mirror.saveError}</p>
+      )}
       {failed && mirror.status.state === "error" && (
         <p className="mirror-error">
           {mirror.status.message}

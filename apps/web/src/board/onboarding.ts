@@ -6,6 +6,7 @@ import {
   createSpreadsheet,
   MEMORIES_TAB,
   NOTES_TAB,
+  protectAllTabs,
   TASKS_TAB,
   writeHeaderRow,
   type SheetTab,
@@ -43,6 +44,13 @@ export async function createCollection(token: string, title: string, kind: Colle
     } catch {
       // Left without a Columns tab; useColumns migrates it on first load.
     }
+  }
+  // Every tab gets the warn-on-manual-edit protection: the sheets are the
+  // app's storage, so hand edits in the Sheets UI deserve an "are you sure?".
+  try {
+    await protectAllTabs(token, spreadsheetId);
+  } catch {
+    // Left unprotected; the warning banner is cosmetic, never load-bearing.
   }
   try {
     const folders = await ensureMemoriaFolders(token);

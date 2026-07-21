@@ -6,7 +6,6 @@ import { beginTasksConsent } from "../auth/session.js";
 import { useBoard } from "../board/useBoard.js";
 import { useColumns } from "../board/useColumns.js";
 import { useTasksMirror } from "../calendar/useTasksMirror.js";
-import { getCalendarMirrorEnabled, setCalendarMirrorEnabled } from "../lib/storage.js";
 import { useBackClose } from "../lib/useBackClose.js";
 import { useMemories } from "../memories/useMemories.js";
 import { uploadMemoryAttachment } from "../notes/attachments.js";
@@ -16,6 +15,7 @@ import { KindEmpty } from "./KindEmpty.js";
 import { MalformedBanner } from "./MalformedBanner.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { NotesGrid } from "./NotesGrid.js";
+import { useCalendarMirrorSetting } from "../settings/useCalendarMirrorSetting.js";
 import { SettingsPanel, type SettingsSection } from "./SettingsPanel.js";
 import { Topbar } from "./Topbar.js";
 
@@ -135,7 +135,9 @@ function BoardShell({
   } = useBoard(token, spreadsheetId, columnOrder, doneStatus ?? "done");
   const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
   useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
-  const [mirrorEnabled, setMirrorEnabled] = useState(getCalendarMirrorEnabled);
+  // The toggle lives in the Settings sheet in Drive, not localStorage —
+  // it follows the account across browsers and devices.
+  const mirrorSetting = useCalendarMirrorSetting(calendarMirrorAvailable ? token : null);
 
   const readOnly = state.status !== "ready";
   const tasks = state.status === "ready" ? state.tasks : [];
@@ -145,15 +147,18 @@ function BoardShell({
     boardId: spreadsheetId,
     tasks: state.status === "ready" ? state.tasks : null,
     doneStatus,
-    active: mirrorEnabled && hasTasksScope && calendarMirrorAvailable,
+    active: mirrorSetting.enabled && hasTasksScope && calendarMirrorAvailable,
   });
 
-  /** Turning it on without the scope yet → re-consent redirect; the flag survives the round-trip. */
+  /**
+   * Turning it on without the scope yet → re-consent redirect, but only after
+   * the sheet write landed — the setting has to survive the round-trip.
+   */
   function handleMirrorToggle(): void {
-    const next = !mirrorEnabled;
-    setCalendarMirrorEnabled(next);
-    setMirrorEnabled(next);
-    if (next && !hasTasksScope) beginTasksConsent();
+    const next = !mirrorSetting.enabled;
+    void mirrorSetting.setEnabled(next).then((persisted) => {
+      if (persisted && next && !hasTasksScope) beginTasksConsent();
+    });
   }
 
   return (
@@ -232,9 +237,11 @@ function BoardShell({
           calendarMirror={
             calendarMirrorAvailable
               ? {
-                  enabled: mirrorEnabled,
+                  ready: mirrorSetting.ready,
+                  enabled: mirrorSetting.enabled,
                   hasScope: hasTasksScope,
                   status: mirrorStatus,
+                  saveError: mirrorSetting.saveError,
                   onToggle: handleMirrorToggle,
                 }
               : null
