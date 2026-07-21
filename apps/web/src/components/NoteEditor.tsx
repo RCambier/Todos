@@ -131,7 +131,9 @@ export function NoteEditor({
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (e.key === "Escape") {
-        if (mode === "view") onClose();
+        // Close through handleClose so a brand-new note abandoned empty is
+        // cleaned up on Escape too, not just on click-close.
+        if (mode === "view") handleCloseRef.current();
         else {
           saveIfDirty();
           setMode("view");
@@ -223,6 +225,10 @@ export function NoteEditor({
     saveIfDirty();
     onClose();
   }
+  // Ref, so the Escape listener (bound per mode change) always closes with
+  // the current draft's emptiness, never a stale snapshot.
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
 
   const agent = note.source === "agent";
   const capNoun = noun.charAt(0).toUpperCase() + noun.slice(1);

@@ -2084,8 +2084,8 @@ kbd {
   .fab-add:active {
     transform: scale(0.96);
   }
-  /* The new-note ghost card is desktop chrome on mobile — the FAB replaces it. */
-  .note-card-new {
+  /* The new-note button is desktop chrome on mobile — the FAB replaces it. */
+  .notes-new-btn {
     display: none;
   }
   /* 2a chip pills: bordered, active = filled accent, counts inline */
@@ -2305,36 +2305,23 @@ kbd {
   gap: 12px;
   flex-wrap: wrap;
 }
-/* The "new note" affordance: a ghost card in the grid, visibly a button. */
-.note-card-new {
-  display: flex;
-  flex-direction: column;
+/* The "new note" button — accent pill in the toolbar, filters pushed right. */
+.notes-new-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 96px;
-  border: 1.5px dashed var(--line-strong);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--ink-muted);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s,
-    background 0.15s;
+  gap: 7px;
+  align-self: center;
+  border-radius: 999px;
+  padding: 8px 16px 8px 13px;
 }
-.note-card-new:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--card);
-}
-.note-card-new-plus {
-  font-size: 22px;
+.notes-new-plus {
+  font-size: 16px;
   line-height: 1;
   font-weight: 400;
+  margin-top: -1px;
+}
+.notes-toolbar .notes-filters {
+  margin-left: auto;
 }
 .notes-filters {
   display: flex;

@@ -79,6 +79,15 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
   return (
     <div className="notes-view">
       <div className="notes-toolbar">
+        {/* A real button, visibly a button — where the ill-fated fake text input used to sit. */}
+        {showCreateCard && (
+          <button type="button" className="btn-primary notes-new-btn" onClick={onCreate}>
+            <span className="notes-new-plus" aria-hidden="true">
+              +
+            </span>
+            {copy.create}
+          </button>
+        )}
         <div className="notes-filters" role="group" aria-label="Filter notes">
           <button
             type="button"
@@ -104,18 +113,8 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
         </div>
       </div>
 
-      {(visible.length > 0 || showCreateCard) && (
+      {visible.length > 0 && (
         <div className="notes-grid">
-          {/* A real button styled as a ghost card — the "create" affordance
-              lives in the grid itself, not a fake text input. */}
-          {showCreateCard && (
-            <button type="button" className="note-card-new" onClick={onCreate}>
-              <span className="note-card-new-plus" aria-hidden="true">
-                +
-              </span>
-              {copy.create}
-            </button>
-          )}
           {visible.map((note) => {
             const { images, text } = noteImages(note.body);
             const hasText = text.trim() !== "";
