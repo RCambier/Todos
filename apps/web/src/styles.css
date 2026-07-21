@@ -2458,6 +2458,9 @@ kbd {
 }
 .note-view-body {
   min-height: 80px;
+  /* .note-scroll is a column flexbox that scrolls; without this the body is
+     flex-crushed under tall images and they spill past the editable zone. */
+  flex-shrink: 0;
   padding: 2px 4px;
   margin-left: -4px;
   border-radius: 6px;
