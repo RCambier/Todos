@@ -37,8 +37,9 @@ interface UseMemoriesResult {
   pendingCount: number;
   /** Google rejected the queued write (not a connectivity problem) — shown so a wedged queue is never silent. */
   writeRejected: string | null;
-  /** Creates a memory locally and returns it immediately (the editor opens on it). */
-  addMemory: (input: { title?: string; body?: string; tags?: string[]; expiresAt?: string }) => Memory | null;
+  // No addMemory: memories are recorded by agents through the MCP tools, never
+  // composed in the web UI. The hook still *flushes* pending "add" ops so an
+  // outbox from an older client drains safely — it just never enqueues one.
   updateMemory: (
     id: string,
     patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string },
@@ -272,16 +273,6 @@ export function useMemories(token: string | null, spreadsheetId: string | null):
     [flush, setOutbox],
   );
 
-  const addMemory = useCallback(
-    (input: { title?: string; body?: string; tags?: string[]; expiresAt?: string }): Memory | null => {
-      if (!localRef.current.sheetId) return null;
-      const memory = memoriesApi.buildNewMemory(input);
-      enqueue({ kind: "add", memory });
-      return memory;
-    },
-    [enqueue],
-  );
-
   const updateMemory = useCallback(
     (id: string, patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string }) => {
       enqueue({ kind: "edit", id, patch, at: new Date().toISOString() });
@@ -310,7 +301,6 @@ export function useMemories(token: string | null, spreadsheetId: string | null):
     offline: fetchError !== null,
     pendingCount: local.outbox.length,
     writeRejected: local.outbox.length > 0 ? writeRejected : null,
-    addMemory,
     updateMemory,
     deleteMemory,
     refresh,

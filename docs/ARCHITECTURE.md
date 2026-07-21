@@ -355,6 +355,12 @@ attachments, plus **tags** to categorize (`family`, `preferences`,
   board uses) and the same local-first replica + outbox scheme
   (`memories/useMemories.ts`). Attachments upload to
   `Memoria/memories/attachments/`.
+- **Written by agents, curated by the user**: the web view deliberately has
+  no capture bar or "+" for memories — a memory is something an agent
+  learned, so agents (the MCP tools) are the only writers. The tab is the
+  human's window and control panel: read, fix tags/expiry, edit a wrong
+  fact, delete. (`useMemories` exposes no `addMemory`; it still drains
+  pending "add" ops from an older client's outbox.)
 
 ### Drive layout
 

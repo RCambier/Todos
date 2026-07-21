@@ -1,6 +1,5 @@
 import {
   appendMemoryIfAbsent as appendMemoryOp,
-  buildMemory,
   deleteMemory,
   fetchMemories as fetchMemoriesOp,
   updateMemory,
@@ -24,20 +23,12 @@ export function fetchMemories(token: string, spreadsheetId: string): Promise<Par
   return fetchMemoriesOp(store(token, spreadsheetId));
 }
 
-/** Pure: builds the `Memory` object for a new user-created memory (the optimistic-UI path). */
-export function buildNewMemory(input: {
-  title?: string;
-  body?: string;
-  tags?: string[];
-  expiresAt?: string;
-}): Memory {
-  return buildMemory(input, "user");
-}
-
 /**
- * Appends a newly built memory, replay-safely: the flusher may retry an
+ * Appends an already-built memory, replay-safely: the flusher may retry an
  * append whose response was lost, so the shared op re-reads and skips if the
- * id is already on the sheet (never a duplicate row).
+ * id is already on the sheet (never a duplicate row). Only ever fed by an
+ * outbox drained from an older client — the web UI no longer composes
+ * memories (agents are the only writers, via the MCP tools).
  */
 export function appendMemory(token: string, spreadsheetId: string, memory: Memory): Promise<void> {
   return appendMemoryOp(store(token, spreadsheetId), memory);

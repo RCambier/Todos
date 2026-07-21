@@ -2084,8 +2084,8 @@ kbd {
   .fab-add:active {
     transform: scale(0.96);
   }
-  /* The notes capture bar is desktop chrome on mobile — the FAB replaces it. */
-  .notes-capture {
+  /* The new-note ghost card is desktop chrome on mobile — the FAB replaces it. */
+  .note-card-new {
     display: none;
   }
   /* 2a chip pills: bordered, active = filled accent, counts inline */
@@ -2305,24 +2305,36 @@ kbd {
   gap: 12px;
   flex-wrap: wrap;
 }
-.notes-capture {
-  flex: 0 1 420px;
-  text-align: left;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 11px 16px;
+/* The "new note" affordance: a ghost card in the grid, visibly a button. */
+.note-card-new {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-muted);
   font: inherit;
   font-size: 13.5px;
-  color: var(--ink-faint);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+.note-card-new:hover {
+  border-color: var(--accent);
+  color: var(--accent);
   background: var(--card);
-  cursor: text;
 }
-.notes-capture:hover {
-  border-color: var(--line-strong);
-}
-.notes-capture:disabled {
-  opacity: 0.6;
-  cursor: default;
+.note-card-new-plus {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
 }
 .notes-filters {
   display: flex;

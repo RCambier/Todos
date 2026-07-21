@@ -323,22 +323,17 @@ function MemoriesShell({
   onSelectKind,
   onSignOut,
 }: ShellProps) {
-  const { state, lastSyncedAt, offline, pendingCount, writeRejected, addMemory, updateMemory, deleteMemory } =
+  const { state, lastSyncedAt, offline, pendingCount, writeRejected, updateMemory, deleteMemory } =
     useMemories(token, spreadsheetId);
   const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
   // The open memory, if any — looked up live so a sync refreshes the dialog.
-  const [open, setOpen] = useState<{ id: string; isNew: boolean } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
   useBackClose(open !== null, () => setOpen(null));
 
   const readOnly = state.status !== "ready";
   const memories = state.status === "ready" ? state.memories : [];
-  const openMemory = open ? memories.find((m) => m.id === open.id) : undefined;
-
-  function handleCreate(): void {
-    const memory = addMemory({});
-    if (memory) setOpen({ id: memory.id, isNew: true });
-  }
+  const openMemory = open ? memories.find((m) => m.id === open) : undefined;
 
   return (
     <div className="app">
@@ -376,26 +371,26 @@ function MemoriesShell({
         </div>
       )}
 
+      {/* No onCreate: memories are written by agents (via the MCP tools), never
+          composed by hand — the view is for reading and curating (edit, delete). */}
       <NotesGrid
         notes={memories}
         token={token}
         readOnly={readOnly}
-        onOpen={(id) => setOpen({ id, isNew: false })}
-        onCreate={handleCreate}
+        onOpen={(id) => setOpen(id)}
         copy={{
-          capture: "Record a memory…",
           emptyAll:
-            "No memories yet. Your AI agents will gather facts about you here over time — or record one yourself.",
+            "No memories yet. Connect an agent (Account menu → Connect from agents) and it will gather facts about you here over time.",
           noun: "memories",
         }}
       />
 
-      {openMemory && open && (
+      {openMemory && (
         <NoteEditor
           note={openMemory}
           token={token}
           readOnly={readOnly}
-          startInEdit={open.isNew}
+          startInEdit={false}
           noun="memory"
           uploadAttachment={uploadMemoryAttachment}
           onClose={() => setOpen(null)}

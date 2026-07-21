@@ -23,8 +23,8 @@ function expiryLabel(item: NoteLike, today: string): { text: string; expired: bo
 
 /** The grid's user-facing wording — the AI Memories view swaps in its own. */
 export interface NotesGridCopy {
-  /** Capture bar text and the mobile FAB label. */
-  capture: string;
+  /** Label of the new-item placeholder card and the mobile FAB. Unused when the view has no `onCreate`. */
+  create?: string;
   /** Empty-state line when the sheet has no items at all. */
   emptyAll: string;
   /** Plural noun for the filtered empty state ("notes", "memories"). */
@@ -32,8 +32,8 @@ export interface NotesGridCopy {
 }
 
 const NOTES_COPY: NotesGridCopy = {
-  capture: "Take a note…",
-  emptyAll: "No notes yet. Use the bar above to take one.",
+  create: "New note",
+  emptyAll: "No notes yet — the first one is a click away.",
   noun: "notes",
 };
 
@@ -43,7 +43,11 @@ interface NotesGridProps {
   token: string | null;
   readOnly: boolean;
   onOpen: (id: string) => void;
-  onCreate: () => void;
+  /**
+   * Omitted for collections the user doesn't compose by hand (AI Memories —
+   * agents are the only writers): no capture bar, no mobile "+".
+   */
+  onCreate?: () => void;
   /** Defaults to the Notes wording. */
   copy?: NotesGridCopy;
 }
@@ -70,18 +74,11 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
 
   const visible = filter === "all" ? notes : notes.filter((n) => n.source === filter);
 
+  const showCreateCard = Boolean(onCreate) && !readOnly;
+
   return (
     <div className="notes-view">
       <div className="notes-toolbar">
-        <button
-          type="button"
-          className="notes-capture"
-          onClick={onCreate}
-          disabled={readOnly}
-          aria-label={copy.capture.replace(/…$/, "")}
-        >
-          {copy.capture}
-        </button>
         <div className="notes-filters" role="group" aria-label="Filter notes">
           <button
             type="button"
@@ -107,18 +104,18 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
         </div>
       </div>
 
-      {visible.length === 0 ? (
-        <div className="notes-empty">
-          {notes.length === 0 ? (
-            <p>{copy.emptyAll}</p>
-          ) : (
-            <p>
-              No {filter === "agent" ? "agent" : "your"} {copy.noun} here.
-            </p>
-          )}
-        </div>
-      ) : (
+      {(visible.length > 0 || showCreateCard) && (
         <div className="notes-grid">
+          {/* A real button styled as a ghost card — the "create" affordance
+              lives in the grid itself, not a fake text input. */}
+          {showCreateCard && (
+            <button type="button" className="note-card-new" onClick={onCreate}>
+              <span className="note-card-new-plus" aria-hidden="true">
+                +
+              </span>
+              {copy.create}
+            </button>
+          )}
           {visible.map((note) => {
             const { images, text } = noteImages(note.body);
             const hasText = text.trim() !== "";
@@ -179,8 +176,20 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
         </div>
       )}
 
-      {/* Mobile-only "+" — the capture bar's counterpart on small screens. */}
-      {!readOnly && <AddFab label={copy.capture.replace(/…$/, "")} onClick={onCreate} />}
+      {visible.length === 0 && (
+        <div className="notes-empty">
+          {notes.length === 0 ? (
+            <p>{copy.emptyAll}</p>
+          ) : (
+            <p>
+              No {filter === "agent" ? "agent" : "your"} {copy.noun} here.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Mobile-only "+" — the new-note card's counterpart on small screens. */}
+      {showCreateCard && onCreate && <AddFab label={copy.create ?? "New"} onClick={onCreate} />}
     </div>
   );
 }

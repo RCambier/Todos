@@ -59,8 +59,10 @@ export function KindEmpty({ token, kind, extras, onSheetReady }: KindEmptyProps)
       <SheetGlyph kind={kind} />
       <h2>No {label} sheet yet</h2>
       <p>
-        {label} live in a Google Sheet in your Drive, like everything in Memoria. Create one and you (or your
-        agents) can start writing to it.
+        {label} live in a Google Sheet in your Drive, like everything in Memoria.{" "}
+        {kind === "memories"
+          ? "Create one and your agents can start remembering facts about you — memories are written by agents, curated by you."
+          : "Create one and you (or your agents) can start writing to it."}
       </p>
 
       {error && <div className="first-run-error">{error}</div>}
