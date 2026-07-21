@@ -75,8 +75,20 @@ const memoryTagsSchema = z
   )
   .optional()
   .describe(
-    'Labels categorizing the memory (e.g. "family", "preferences", "work"); replaces the ' +
-      "existing set when provided.",
+    "Labels categorizing the memory; replaces the existing set when provided. Prefer the " +
+      'shared vocabulary — "profile", "preferences", "work", "projects", "relationships", ' +
+      '"health", "context" — adding specific tags alongside as needed.',
+  );
+
+const memoryExpiresSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expires_at must be YYYY-MM-DD")
+  .or(z.literal(""))
+  .optional()
+  .describe(
+    "For time-bound facts: the YYYY-MM-DD date after which the fact no longer holds " +
+      '(e.g. "in SF until Aug 2" expires 2026-08-02). Omit for facts with no natural end; ' +
+      "pass an empty string to clear it.",
   );
 
 function taskText(task: Task): string {
@@ -106,10 +118,27 @@ function errorResult(err: unknown): { content: [{ type: "text"; text: string }];
 }
 
 /**
- * Registers the board and notes tools on an MCP server. Every task tool
- * resolves its target board first (see `resolveBoard`), every note tool its
- * notes collection (`resolveNotes`), and every mutation re-locates its row
- * by id.
+ * Registers the board, notes, and memories tools on an MCP server. Every
+ * task tool resolves its target board first (see `resolveBoard`), every
+ * note/memory tool its collection (`resolveNotes` / `resolveMemories`), and
+ * every mutation re-locates its row by id.
+ *
+ * ## Tool naming convention (every new collection kind follows it)
+ *
+ * For a kind with singular `<x>` and plural `<xs>` (notes → note/notes,
+ * memories → memory/memories):
+ *
+ * - `list_<x>_collections` — the kind's collections (id, name, modified)
+ * - `list_<xs>`            — every item in one collection
+ * - `add_<x>` / `update_<x>` / `delete_<x>` — item CRUD, one row each
+ * - `<xs>_id`              — the optional collection-id parameter
+ * - `id`                   — the item-id parameter on every mutation
+ *
+ * The board tools predate the multi-kind model and keep their historical
+ * names as the one documented exception (`list_boards` not
+ * `list_task_collections`, `board_id` not `tasks_id`, plus the
+ * board-specific verbs `move_task` / `complete_task`) — renaming them would
+ * break every connected agent for zero behavioral gain.
  */
 export function registerTools(server: McpServer, catalog: MemoriaCatalog): void {
   server.tool(
@@ -371,8 +400,10 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
   server.tool(
     "list_memories",
     "List every memory in an AI Memories collection, most recently edited first. Each memory " +
-      "has a title, a markdown body, and tags. Check here before adding a memory — update the " +
-      "existing entry when a fact changes rather than recording it twice.",
+      "has a title, a markdown body, tags, and an optional expires_at date — treat entries " +
+      "whose expires_at has passed as stale (update, re-date, or delete them). Check here " +
+      "before adding a memory — update the existing entry when a fact changes rather than " +
+      "recording it twice.",
     { memories_id: memoriesIdSchema },
     async ({ memories_id }) => {
       try {
@@ -387,19 +418,21 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "add_memory",
-    "Record a new memory — a fact worth remembering about the user (preferences, people, " +
-      "context, decisions). Give it a short title, a markdown body, and tags to categorize. " +
+    "Record a new memory — one atomic fact worth remembering about the user (a preference, a " +
+      "person, context, a decision), stated so it stands alone. Give it a short title, a " +
+      "markdown body, tags to categorize, and — for time-bound facts — an expires_at date. " +
       "Memories created this way are tagged source=agent.",
     {
       memories_id: memoriesIdSchema,
       title: z.string().min(1, "title is required").max(MAX_CELL_CHARS),
       body: z.string().max(MAX_CELL_CHARS).optional().describe("Markdown body of the memory."),
       tags: memoryTagsSchema,
+      expires_at: memoryExpiresSchema,
     },
-    async ({ memories_id, title, body, tags }) => {
+    async ({ memories_id, title, body, tags, expires_at }) => {
       try {
         const client = await resolveMemories(catalog, memories_id);
-        const memory = await board.addMemory(client, { title, body, tags }, "agent");
+        const memory = await board.addMemory(client, { title, body, tags, expiresAt: expires_at }, "agent");
         return { content: [{ type: "text", text: memoryText(memory) }] };
       } catch (err) {
         return errorResult(err);
@@ -409,8 +442,9 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "update_memory",
-    "Edit a memory's title, markdown body, and/or tags. Fields you omit are left unchanged; " +
-      "the body and tags you pass replace the existing ones. Get the id from list_memories.",
+    "Edit a memory's title, markdown body, tags, and/or expiry. Fields you omit are left " +
+      "unchanged; the body and tags you pass replace the existing ones. Get the id from " +
+      "list_memories.",
     {
       memories_id: memoriesIdSchema,
       id: z.string().min(1),
@@ -421,11 +455,17 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
         .optional()
         .describe("New markdown body; replaces the existing one."),
       tags: memoryTagsSchema,
+      expires_at: memoryExpiresSchema,
     },
-    async ({ memories_id, id, title, body, tags }) => {
+    async ({ memories_id, id, title, body, tags, expires_at }) => {
       try {
         const client = await resolveMemories(catalog, memories_id);
-        const memory = await board.updateMemory(client, id, { title, body, tags });
+        const memory = await board.updateMemory(client, id, {
+          title,
+          body,
+          tags,
+          expiresAt: expires_at,
+        });
         return { content: [{ type: "text", text: memoryText(memory) }] };
       } catch (err) {
         return errorResult(err);

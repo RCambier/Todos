@@ -6,6 +6,7 @@ import {
   buildMemory,
   deleteMemory,
   enqueueMemoryOp,
+  isMemoryExpired,
   listMemories,
   MemoryNotFoundError,
   MEMORIES_HEADERS,
@@ -52,8 +53,9 @@ function row(
   tags = "",
   source = "user",
   at = "2026-01-01T00:00:00.000Z",
+  expires = "",
 ): string[] {
-  return [id, title, body, tags, source, at, at];
+  return [id, title, body, tags, source, at, at, expires];
 }
 
 function memory(id: string, overrides: Partial<Memory> = {}): Memory {
@@ -65,6 +67,7 @@ function memory(id: string, overrides: Partial<Memory> = {}): Memory {
     source: "user",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "",
     ...overrides,
   };
 }
@@ -167,8 +170,21 @@ describe("rowToMemory / memoryToRow", () => {
       body: "# md\n\ntext",
       tags: ["family", "travel"],
       source: "agent",
+      expiresAt: "2026-08-02",
     });
     expect(rowToMemory(memoryToRow(m))).toEqual(m);
+  });
+
+  it("rejects a malformed expires_at, locating the column", () => {
+    const result = parseMemoriesSheet([
+      [...MEMORIES_HEADERS],
+      row("m1", "t", "b", "", "user", "2026-01-01T00:00:00.000Z", "next week"),
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.column).toBe("expires_at");
+      expect(result.error.message).toContain("YYYY-MM-DD");
+    }
   });
 
   it("coerces unknown sources to user", () => {
@@ -177,6 +193,19 @@ describe("rowToMemory / memoryToRow", () => {
 
   it("cleans up messy tag cells", () => {
     expect(rowToMemory(row("m1", "t", "b", " a ,, b ,")).tags).toEqual(["a", "b"]);
+  });
+});
+
+describe("isMemoryExpired", () => {
+  it("never expires a memory without an expiry date", () => {
+    expect(isMemoryExpired(memory("m"), "2099-01-01")).toBe(false);
+  });
+
+  it("keeps the expiry day itself valid, expires the day after", () => {
+    const m = memory("m", { expiresAt: "2026-08-02" });
+    expect(isMemoryExpired(m, "2026-08-01")).toBe(false);
+    expect(isMemoryExpired(m, "2026-08-02")).toBe(false);
+    expect(isMemoryExpired(m, "2026-08-03")).toBe(true);
   });
 });
 
@@ -225,6 +254,18 @@ describe("memory operations", () => {
     expect(store.rows[1]![3]).toBe("new1, new2");
   });
 
+  it("updateMemory sets and clears the expiry independently of other fields", async () => {
+    const store = new FakeSheetStore([row("m1", "T", "B")]);
+    const set = await updateMemory(store, "m1", { expiresAt: "2026-08-02" });
+    expect(set.expiresAt).toBe("2026-08-02");
+    expect(store.rows[1]![7]).toBe("2026-08-02");
+    const kept = await updateMemory(store, "m1", { title: "T2" });
+    expect(kept.expiresAt).toBe("2026-08-02"); // untouched by an unrelated patch
+    const cleared = await updateMemory(store, "m1", { expiresAt: "" });
+    expect(cleared.expiresAt).toBe("");
+    expect(store.rows[1]![7]).toBe("");
+  });
+
   it("updateMemory locates the row by id even after rows moved", async () => {
     const store = new FakeSheetStore([row("a", "A"), row("b", "B")]);
     store.rows.splice(1, 1); // "a" deleted remotely; "b" shifts up
@@ -248,11 +289,12 @@ describe("memory operations", () => {
     await expect(updateMemory(store, "m1", { title: "y" })).rejects.toBeInstanceOf(MalformedSheetError);
   });
 
-  it("buildMemory defaults title, body, and tags to empty", () => {
+  it("buildMemory defaults title, body, tags, and expiry to empty", () => {
     const m = buildMemory({}, "user");
     expect(m.title).toBe("");
     expect(m.body).toBe("");
     expect(m.tags).toEqual([]);
+    expect(m.expiresAt).toBe("");
     expect(m.id).toBeTruthy();
   });
 });

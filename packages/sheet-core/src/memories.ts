@@ -18,7 +18,7 @@ import type { SheetStore } from "./store.js";
 /** Name of the spreadsheet tab that holds memories. */
 export const MEMORIES_TAB_NAME = "Memories";
 
-/** Column headers for a memories sheet, in column order (A..G). */
+/** Column headers for a memories sheet, in column order (A..H). */
 export const MEMORIES_HEADERS = [
   "id",
   "title",
@@ -27,6 +27,7 @@ export const MEMORIES_HEADERS = [
   "source",
   "created_at",
   "updated_at",
+  "expires_at",
 ] as const;
 
 /**
@@ -51,6 +52,13 @@ export interface Memory {
   createdAt: string;
   /** ISO 8601, set on every mutation. */
   updatedAt: string;
+  /**
+   * `YYYY-MM-DD` after which the fact no longer holds ("in SF until Aug 2"),
+   * or `""` for a fact with no natural end. Expired memories stay on the
+   * sheet — they're flagged, not hidden, so clients and agents can review
+   * and clean them up deliberately (see `isMemoryExpired`).
+   */
+  expiresAt: string;
 }
 
 /** No row with the given memory id was found in the freshest read. */
@@ -83,7 +91,12 @@ export function rowToMemory(row: SheetRow): Memory {
   const updatedAt = cell(row, 6).trim();
   if (updatedAt === "") throw new RowValidationError("updated_at", cell(row, 6));
 
-  return { id, title, body, tags, source, createdAt, updatedAt };
+  const expiresAt = cell(row, 7).trim();
+  if (expiresAt !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+    throw new RowValidationError("expires_at", cell(row, 7));
+  }
+
+  return { id, title, body, tags, source, createdAt, updatedAt, expiresAt };
 }
 
 /** Converts a `Memory` into a raw row, in `MEMORIES_HEADERS` column order, ready to write. */
@@ -96,6 +109,7 @@ export function memoryToRow(memory: Memory): SheetRow {
     memory.source,
     memory.createdAt,
     memory.updatedAt,
+    memory.expiresAt,
   ];
 }
 
@@ -132,7 +146,9 @@ function memoryFieldError(rowNumber: number, err: RowValidationError): SheetErro
       ? `Row ${rowNumber}: id is required but was empty.`
       : column === "created_at" || column === "updated_at"
         ? `Row ${rowNumber}: ${column} is required but was empty.`
-        : `Row ${rowNumber}: ${column} "${value}" is invalid.`;
+        : column === "expires_at"
+          ? `Row ${rowNumber}: expires_at "${value}" isn't a YYYY-MM-DD date (leave it empty for a fact that doesn't expire).`
+          : `Row ${rowNumber}: ${column} "${value}" is invalid.`;
   return { row: rowNumber, column, value, message };
 }
 
@@ -154,6 +170,16 @@ export function parseMemoriesSheet(rows: readonly SheetRow[]): ParseMemoriesResu
   return { ok: true, memories: result.items };
 }
 
+/**
+ * Whether a memory's fact has lapsed: `expiresAt` is set and strictly before
+ * `todayYmd` (a `YYYY-MM-DD` string — lexical compare is date compare). The
+ * expiry *day itself* still counts as valid ("until Aug 2" includes Aug 2).
+ * Pure; callers supply today so clients can pick their own timezone rule.
+ */
+export function isMemoryExpired(memory: Memory, todayYmd: string): boolean {
+  return memory.expiresAt !== "" && memory.expiresAt < todayYmd;
+}
+
 /** Grid display order: most recently edited first (ISO timestamps compare lexically). */
 export function memoriesOrder(memories: readonly Memory[]): Memory[] {
   return [...memories].sort((a, b) =>
@@ -169,6 +195,8 @@ export interface NewMemoryInput {
   title?: string;
   body?: string;
   tags?: string[];
+  /** `YYYY-MM-DD`, or empty/omitted for a fact that doesn't expire. */
+  expiresAt?: string;
 }
 
 /** Pure: builds the `Memory` for a new entry. */
@@ -183,6 +211,7 @@ export function buildMemory(input: NewMemoryInput, source: Source): Memory {
     source,
     createdAt: now,
     updatedAt: now,
+    expiresAt: input.expiresAt ?? "",
   };
 }
 
@@ -237,7 +266,7 @@ export async function addMemory(store: SheetStore, input: NewMemoryInput, source
 export async function updateMemory(
   store: SheetStore,
   id: string,
-  patch: { title?: string; body?: string; tags?: string[] },
+  patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string },
 ): Promise<Memory> {
   assertCellLimits({ title: patch.title, body: patch.body });
   const { memories, rawRows } = await readValidMemories(store);
@@ -249,6 +278,7 @@ export async function updateMemory(
     title: patch.title ?? current.title,
     body: patch.body ?? current.body,
     tags: patch.tags ?? current.tags,
+    expiresAt: patch.expiresAt ?? current.expiresAt,
     updatedAt: new Date().toISOString(),
   };
   const rowNumber = locateRow(rawRows, id);
@@ -269,7 +299,7 @@ export type MemoryPendingOp =
   | {
       kind: "edit";
       id: string;
-      patch: { title?: string; body?: string; tags?: string[] };
+      patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string };
       /** ISO timestamp of the local edit — becomes `updatedAt` in the projection. */
       at: string;
     }
@@ -295,6 +325,7 @@ export function applyMemoriesPending(memories: readonly Memory[], ops: readonly 
         if (op.patch.title !== undefined) m.title = op.patch.title;
         if (op.patch.body !== undefined) m.body = op.patch.body;
         if (op.patch.tags !== undefined) m.tags = [...op.patch.tags];
+        if (op.patch.expiresAt !== undefined) m.expiresAt = op.patch.expiresAt;
         m.updatedAt = op.at;
         break;
       }
@@ -336,6 +367,7 @@ export function enqueueMemoryOp(ops: readonly MemoryPendingOp[], op: MemoryPendi
             title: op.patch.title ?? add.memory.title,
             body: op.patch.body ?? add.memory.body,
             tags: op.patch.tags ?? add.memory.tags,
+            expiresAt: op.patch.expiresAt ?? add.memory.expiresAt,
             updatedAt: op.at,
           },
         };

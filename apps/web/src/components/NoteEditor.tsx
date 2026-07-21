@@ -1,6 +1,6 @@
 import type { Note } from "@memoria/sheet-core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatFullDate } from "../lib/dates.js";
+import { formatDueDateLong, formatFullDate, localToday } from "../lib/dates.js";
 import { MAX_CELL_CHARS } from "@memoria/sheet-core";
 import { useTagColors } from "../lib/tagColor.js";
 import { isAttachableImage, uploadNoteAttachment } from "../notes/attachments.js";
@@ -14,7 +14,7 @@ type EditorMode = "view" | "edit" | "confirm";
 
 interface NoteEditorProps {
   /** A note, or anything note-shaped (an AI memory — then pass `onTagsChange` to edit its tags). */
-  note: Note & { tags?: string[] };
+  note: Note & { tags?: string[]; expiresAt?: string };
   token: string | null;
   readOnly: boolean;
   /** New notes open straight into the editor; existing ones open rendered. */
@@ -24,6 +24,8 @@ interface NoteEditorProps {
   onDelete: () => void;
   /** Provided by the memories view: shows the tag chips/editor and saves tag changes immediately. */
   onTagsChange?: (tags: string[]) => void;
+  /** Provided by the memories view: shows the expiry date field ("" clears it), saved immediately. */
+  onExpiresChange?: (expiresAt: string) => void;
   /** What the item is called in the UI ("note" by default; "memory" for AI Memories). */
   noun?: string;
   /** Where a pasted/dropped file uploads to — defaults to the notes attachments folder. */
@@ -51,6 +53,7 @@ export function NoteEditor({
   onSave,
   onDelete,
   onTagsChange,
+  onExpiresChange,
   noun = "note",
   uploadAttachment = uploadNoteAttachment,
 }: NoteEditorProps) {
@@ -300,6 +303,24 @@ export function NoteEditor({
                 onPaste={handlePaste}
               />
               {onTagsChange && <TagsEditor tags={note.tags ?? []} onChange={onTagsChange} />}
+              {onExpiresChange && (
+                <label className="note-expiry-field">
+                  <span>Fact holds until</span>
+                  <input
+                    type="date"
+                    value={note.expiresAt ?? ""}
+                    onChange={(e) => onExpiresChange(e.target.value)}
+                    aria-label="Expiry date (empty for a fact that doesn't expire)"
+                  />
+                  {note.expiresAt ? (
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => onExpiresChange("")}>
+                      Clear
+                    </button>
+                  ) : (
+                    <span className="note-expiry-hint">leave empty if it doesn’t expire</span>
+                  )}
+                </label>
+              )}
               {uploadError && <p className="note-upload-error">{uploadError}</p>}
             </div>
             <div className="detail-actions note-foot">
@@ -357,11 +378,18 @@ export function NoteEditor({
               >
                 {draftTitle || (readOnly ? "" : "Title")}
               </h2>
-              {note.tags && note.tags.length > 0 && (
+              {((note.tags && note.tags.length > 0) || note.expiresAt) && (
                 <div className="card-tags">
-                  {note.tags.map((t) => (
+                  {note.tags?.map((t) => (
                     <TagChip key={t} name={t} colorClass={tagClass(t)} />
                   ))}
+                  {note.expiresAt && (
+                    <span className={`note-expiry${note.expiresAt < localToday() ? " lapsed" : ""}`}>
+                      {note.expiresAt < localToday()
+                        ? `Expired ${formatDueDateLong(note.expiresAt)}`
+                        : `Until ${formatDueDateLong(note.expiresAt)}`}
+                    </span>
+                  )}
                 </div>
               )}
               <div

@@ -25,7 +25,12 @@ export function fetchMemories(token: string, spreadsheetId: string): Promise<Par
 }
 
 /** Pure: builds the `Memory` object for a new user-created memory (the optimistic-UI path). */
-export function buildNewMemory(input: { title?: string; body?: string; tags?: string[] }): Memory {
+export function buildNewMemory(input: {
+  title?: string;
+  body?: string;
+  tags?: string[];
+  expiresAt?: string;
+}): Memory {
   return buildMemory(input, "user");
 }
 
@@ -43,7 +48,7 @@ export function editMemory(
   token: string,
   spreadsheetId: string,
   id: string,
-  patch: { title?: string; body?: string; tags?: string[] },
+  patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string },
 ): Promise<Memory> {
   return updateMemory(store(token, spreadsheetId), id, patch);
 }

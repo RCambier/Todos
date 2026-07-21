@@ -28,7 +28,8 @@ export function formatDueDateLong(dueDate: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function localToday(): string {
+/** Today as a local-calendar `YYYY-MM-DD` — the day boundary for due dates and memory expiry. */
+export function localToday(): string {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }

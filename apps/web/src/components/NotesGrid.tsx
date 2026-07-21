@@ -1,6 +1,6 @@
 import type { Note } from "@memoria/sheet-core";
 import { useState } from "react";
-import { formatShortDate } from "../lib/dates.js";
+import { formatDueDate, formatShortDate, localToday } from "../lib/dates.js";
 import { noteImages, type NoteImage } from "../lib/noteImages.js";
 import { useTagColors } from "../lib/tagColor.js";
 import { AddFab } from "./AddFab.js";
@@ -11,8 +11,15 @@ import { TagChip } from "./TagChip.js";
 /** The grid's provenance filter — design 5a's chip row. */
 type NotesFilter = "all" | "user" | "agent";
 
-/** What the grid renders: a note, or anything note-shaped with tags (an AI memory). */
-type NoteLike = Note & { tags?: string[] };
+/** What the grid renders: a note, or anything note-shaped with tags and an expiry (an AI memory). */
+type NoteLike = Note & { tags?: string[]; expiresAt?: string };
+
+/** A memory's expiry marker for the card meta row, or null when there is none. */
+function expiryLabel(item: NoteLike, today: string): { text: string; expired: boolean } | null {
+  if (!item.expiresAt) return null;
+  const expired = item.expiresAt < today;
+  return { text: expired ? "Expired" : `Until ${formatDueDate(item.expiresAt)}`, expired };
+}
 
 /** The grid's user-facing wording — the AI Memories view swaps in its own. */
 export interface NotesGridCopy {
@@ -59,6 +66,7 @@ function editedLabel(note: NoteLike): string {
 export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOTES_COPY }: NotesGridProps) {
   const [filter, setFilter] = useState<NotesFilter>("all");
   const tagClass = useTagColors();
+  const today = localToday();
 
   const visible = filter === "all" ? notes : notes.filter((n) => n.source === filter);
 
@@ -114,6 +122,7 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
           {visible.map((note) => {
             const { images, text } = noteImages(note.body);
             const hasText = text.trim() !== "";
+            const expiry = expiryLabel(note, today);
             return (
               // A div, not a button: the body renders real markdown (block
               // elements, links, checkboxes), which can't nest in a button.
@@ -121,7 +130,7 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
                 role="button"
                 tabIndex={0}
                 key={note.id}
-                className={`note-card${note.source === "agent" ? " agent" : ""}${images.length > 0 ? " has-thumb" : ""}`}
+                className={`note-card${note.source === "agent" ? " agent" : ""}${images.length > 0 ? " has-thumb" : ""}${expiry?.expired ? " expired" : ""}`}
                 onClick={() => onOpen(note.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
@@ -156,6 +165,9 @@ export function NotesGrid({ notes, token, readOnly, onOpen, onCreate, copy = NOT
                       </span>
                     )}
                     <span className="note-card-date">Edited {editedLabel(note)}</span>
+                    {expiry && (
+                      <span className={`note-expiry${expiry.expired ? " lapsed" : ""}`}>{expiry.text}</span>
+                    )}
                   </span>
                 </div>
                 {images.length > 0 && (

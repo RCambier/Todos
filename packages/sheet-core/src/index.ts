@@ -54,6 +54,7 @@ export {
   memoryToRow,
   parseMemoriesSheet,
   memoriesOrder,
+  isMemoryExpired,
   buildMemory,
   fetchMemories,
   listMemories,

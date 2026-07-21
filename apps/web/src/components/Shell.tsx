@@ -401,6 +401,7 @@ function MemoriesShell({
           onClose={() => setOpen(null)}
           onSave={(patch) => updateMemory(openMemory.id, patch)}
           onTagsChange={(tags) => updateMemory(openMemory.id, { tags })}
+          onExpiresChange={(expiresAt) => updateMemory(openMemory.id, { expiresAt })}
           onDelete={() => deleteMemory(openMemory.id)}
         />
       )}

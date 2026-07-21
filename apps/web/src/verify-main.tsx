@@ -92,8 +92,9 @@ function memory(
   tags: string[],
   source: Memory["source"],
   updatedAt = now,
+  expiresAt = "",
 ): Memory {
-  return { id, title, body, tags, source, createdAt: updatedAt, updatedAt };
+  return { id, title, body, tags, source, createdAt: updatedAt, updatedAt, expiresAt };
 }
 
 const grid: string[][] = [
@@ -154,6 +155,28 @@ const memoriesGrid: string[][] = [
       ["family"],
       "user",
       new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    ),
+  ),
+  memoryToRow(
+    memory(
+      "m3",
+      "In SF until early August",
+      "Working from the Mission office; back home after.",
+      ["context"],
+      "agent",
+      new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+      new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    ),
+  ),
+  memoryToRow(
+    memory(
+      "m4",
+      "Studying for the driving test",
+      "Theory exam was mid-June — probably done by now.",
+      ["context"],
+      "user",
+      new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     ),
   ),
 ];

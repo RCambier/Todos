@@ -196,9 +196,18 @@ re-locates the row by ID first, exactly like the web app):
 | `delete_note`           | `id`                                                                                         | delete that row              |
 | `list_memory_collections` | —                                                                                          | AI Memories collections      |
 | `list_memories`         | —                                                                                            | memories, newest-edited first |
-| `add_memory`            | `title`, optional markdown `body`, `tags`                                                    | append a memory              |
-| `update_memory`         | `id`, optional `title`, `body`, `tags` (each replaces the whole field)                       | edit fields                  |
+| `add_memory`            | `title`, optional markdown `body`, `tags`, `expires_at`                                      | append a memory              |
+| `update_memory`         | `id`, optional `title`, `body`, `tags`, `expires_at` (each replaces the whole field)         | edit fields                  |
 | `delete_memory`         | `id`                                                                                         | delete that row              |
+
+**Tool naming convention** (every future collection kind follows it): for a
+kind with singular `<x>` / plural `<xs>` — `list_<x>_collections`,
+`list_<xs>`, `add_<x>`, `update_<x>`, `delete_<x>`, with `<xs>_id` as the
+optional collection parameter and `id` as the item parameter on mutations.
+The board tools predate the multi-kind model and keep their historical names
+as the one documented exception (`list_boards`, `board_id`, plus the
+board-specific verbs `move_task`/`complete_task`) — renaming them would
+break every connected agent for zero behavioral gain.
 
 No bulk or whole-sheet tools — a confused agent can damage at most one row,
 and Sheets version history covers recovery. Tasks, notes, and memories
@@ -322,14 +331,25 @@ attachments, plus **tags** to categorize (`family`, `preferences`,
 - **Tagging**: memories sheets carry `appProperties.memoriaMemories = "1"`
   — a third key, so no client ever mistakes a memories sheet for a notes
   sheet or a board.
+  The structure borrows deliberately from the two mainstream AI memory
+  systems: ChatGPT-style **atomic dated facts** (one row per fact,
+  `created_at`/`updated_at` timestamps) and Claude-style **themed sections**
+  (tags with a suggested shared vocabulary: `profile`, `preferences`,
+  `work`, `projects`, `relationships`, `health`, `context`) — plus one thing
+  neither has explicitly: an **expiry date** for time-bound facts.
 - **Agent access**: their own connector tools (`list_memory_collections`,
   `list_memories`, `add_memory`, `update_memory`, `delete_memory`), with
-  `tags` on add/update; the `list_memories` description nudges agents to
-  update an existing entry when a fact changes rather than record it twice.
+  `tags` and `expires_at` on add/update; the `list_memories` description
+  nudges agents to update an existing entry when a fact changes rather than
+  record it twice, and to treat lapsed `expires_at` entries as stale.
   Agent-written memories land with `source = "agent"`.
 - **Schema**: one tab named `Memories`, header `id, title, body, tags,
-  source, created_at, updated_at`. `body` is markdown; `tags` is
-  comma-separated like task tags (`sheet-core`'s `memories.ts`).
+  source, created_at, updated_at, expires_at`. `body` is markdown; `tags`
+  is comma-separated like task tags; `expires_at` is `YYYY-MM-DD` or empty
+  — the date after which the fact no longer holds ("in SF until Aug 2").
+  Expired memories are flagged, never hidden: the grid fades them and the
+  tools call them out, but cleaning up stays a deliberate act
+  (`sheet-core`'s `memories.ts`, `isMemoryExpired`).
 - **View & sync**: the third tab reuses the notes grid and editor (tag
   chips on cards, a tag editor in the dialog — the same `TagsEditor` the
   board uses) and the same local-first replica + outbox scheme

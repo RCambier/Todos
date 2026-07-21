@@ -1,10 +1,10 @@
-import { HEADERS } from "./headers.js";
 import { isRecurrence, isStatus, type SheetRow, type Source, type Task } from "./types.js";
 
 /** A single field failed validation. Carries enough to build a precise, human-readable error. */
 export class RowValidationError extends Error {
   constructor(
-    public readonly column: (typeof HEADERS)[number],
+    /** The column name, from whichever kind's header contract the row belongs to. */
+    public readonly column: string,
     public readonly value: string,
   ) {
     super(`Invalid value for column "${column}": ${JSON.stringify(value)}`);

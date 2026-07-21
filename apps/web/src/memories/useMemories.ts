@@ -38,8 +38,11 @@ interface UseMemoriesResult {
   /** Google rejected the queued write (not a connectivity problem) — shown so a wedged queue is never silent. */
   writeRejected: string | null;
   /** Creates a memory locally and returns it immediately (the editor opens on it). */
-  addMemory: (input: { title?: string; body?: string; tags?: string[] }) => Memory | null;
-  updateMemory: (id: string, patch: { title?: string; body?: string; tags?: string[] }) => void;
+  addMemory: (input: { title?: string; body?: string; tags?: string[]; expiresAt?: string }) => Memory | null;
+  updateMemory: (
+    id: string,
+    patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string },
+  ) => void;
   deleteMemory: (id: string) => void;
   refresh: () => Promise<void>;
 }
@@ -270,7 +273,7 @@ export function useMemories(token: string | null, spreadsheetId: string | null):
   );
 
   const addMemory = useCallback(
-    (input: { title?: string; body?: string; tags?: string[] }): Memory | null => {
+    (input: { title?: string; body?: string; tags?: string[]; expiresAt?: string }): Memory | null => {
       if (!localRef.current.sheetId) return null;
       const memory = memoriesApi.buildNewMemory(input);
       enqueue({ kind: "add", memory });
@@ -280,7 +283,7 @@ export function useMemories(token: string | null, spreadsheetId: string | null):
   );
 
   const updateMemory = useCallback(
-    (id: string, patch: { title?: string; body?: string; tags?: string[] }) => {
+    (id: string, patch: { title?: string; body?: string; tags?: string[]; expiresAt?: string }) => {
       enqueue({ kind: "edit", id, patch, at: new Date().toISOString() });
     },
     [enqueue],
