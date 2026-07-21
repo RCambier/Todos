@@ -181,8 +181,10 @@ Google consent screen asking additionally for Google Tasks access
 (`auth/tasks` — a sensitive scope; fine while your OAuth consent screen is
 in Testing mode with you as a test user, but note it would need Google's
 verification review before publishing the consent screen to production).
-Tasks with a due date then appear in a "Memoria" Google Tasks list, which
-Google Calendar shows on their due date. One-way: the board is the source
+Dated tasks then appear in a "Memoria" Google Tasks list, which Google
+Calendar shows on that date: either a due date, or a blocked-until that is a
+date (one blocked until an _event_, like "Trip done", has no date to sit on
+and is skipped). One-way: the board is the source
 of truth, and edits made to the mirrored items in Google are overwritten on
 the next sync. Turning the toggle off stops syncing but leaves the list in
 place — delete the "Memoria" list in Google Tasks if you want it gone.

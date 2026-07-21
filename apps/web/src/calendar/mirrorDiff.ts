@@ -1,4 +1,5 @@
 import type { Task } from "@memoria/sheet-core";
+import { isDateOnly } from "../lib/dates.js";
 
 /**
  * Pure planning for the Google Tasks mirror (one-way: board → Google).
@@ -10,10 +11,12 @@ import type { Task } from "@memoria/sheet-core";
  * converge; deleting the whole list just regenerates it.
  *
  * Rules:
- * - Only tasks WITH a due date are mirrored (Google Tasks are date-only and
- *   only dated tasks appear on the Calendar grid).
+ * - A task is mirrored when it has a date to show on: its due date, or the
+ *   date it unblocks (`blockedUntil`). A task carries one or the other, never
+ *   both. A blocked-until naming an event ("Trip done") has no date, so it
+ *   can't be placed on the Calendar grid and is skipped.
  * - A board task in `done` marks its mirror completed but never creates one.
- * - Mirrors whose board task vanished (deleted, or due date cleared) are
+ * - Mirrors whose board task vanished (deleted, or its date cleared) are
  *   deleted. Duplicate mirrors for one task (a historical race) keep the
  *   first and delete the rest.
  * - Board-scoped: mirrors carrying another board's marker are untouched.
@@ -54,13 +57,23 @@ function desiredNotes(task: Task, boardId: string): string {
   return task.notes ? `${task.notes}\n\n${marker}` : marker;
 }
 
-/** Google due timestamps are date-only; compare (and write) just the date. */
-function desiredDue(task: Task): string {
-  return `${task.dueDate}T00:00:00.000Z`;
+/**
+ * The date this task should appear on in Google: its due date, or the date it
+ * unblocks. Empty when it has neither — including a blocked-until that names
+ * an event rather than a date, which has nowhere to sit on a calendar.
+ */
+export function scheduledDate(task: Task): string {
+  if (task.dueDate !== "") return task.dueDate;
+  return isDateOnly(task.blockedUntil) ? task.blockedUntil : "";
 }
 
-function sameDue(googleDue: string, dueDate: string): boolean {
-  return googleDue.startsWith(dueDate);
+/** Google due timestamps are date-only; compare (and write) just the date. */
+function desiredDue(task: Task): string {
+  return `${scheduledDate(task)}T00:00:00.000Z`;
+}
+
+function sameDue(googleDue: string, date: string): boolean {
+  return googleDue.startsWith(date);
 }
 
 export function planMirror(
@@ -82,7 +95,7 @@ export function planMirror(
     }
   }
 
-  const candidates = tasks.filter((t) => t.dueDate !== "");
+  const candidates = tasks.filter((t) => scheduledDate(t) !== "");
   const candidateIds = new Set(candidates.map((t) => t.id));
 
   for (const task of candidates) {
@@ -104,7 +117,7 @@ export function planMirror(
     if (mirror.title !== task.title) fields.title = task.title;
     const notes = desiredNotes(task, boardId);
     if (mirror.notes !== notes) fields.notes = notes;
-    if (!sameDue(mirror.due, task.dueDate)) fields.due = desiredDue(task);
+    if (!sameDue(mirror.due, scheduledDate(task))) fields.due = desiredDue(task);
     if (mirror.status !== status) fields.status = status;
     if (Object.keys(fields).length > 0) ops.push({ kind: "patch", googleId: mirror.id, fields });
   }

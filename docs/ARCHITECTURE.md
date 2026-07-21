@@ -114,9 +114,10 @@ React + TypeScript + Vite static SPA. No backend of any kind.
 - **Malformed sheet**: if validation (from `sheet-core`) fails, show a
   banner naming the exact row/column/value, disable all mutations, keep
   polling — the board resumes automatically once the sheet is fixed.
-- **Google Tasks calendar mirror** (opt-in, one-way): tasks with a due date
+- **Google Tasks calendar mirror** (opt-in, one-way): tasks that have a date
+  — a due date, or a `blockedUntil` that is a date rather than an event —
   are mirrored into a "Memoria" Google Tasks list, which Google Calendar
-  shows on the due date (Google Tasks are date-only). The board is the
+  shows on that date (Google Tasks are date-only). The board is the
   source of truth — the mirror is entirely *derivable*: each mirrored task
   carries a `[memoria:<boardId>/<taskId>]` marker in its notes as the only
   join key, and sync is a pure reconcile (`calendar/mirrorDiff.ts`): diff

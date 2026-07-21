@@ -1,7 +1,7 @@
 import type { Task } from "@memoria/sheet-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applyMirrorOp, ensureMemoriaList, listMirrorTasks } from "./gtasksApi.js";
-import { planMirror } from "./mirrorDiff.js";
+import { planMirror, scheduledDate } from "./mirrorDiff.js";
 
 /** Reconcile at most this often when nothing changed (drift repair). */
 const IDLE_INTERVAL_MS = 5 * 60 * 1000;
@@ -40,8 +40,8 @@ export function useTasksMirror(opts: {
   const fingerprint = useMemo(() => {
     if (!tasks) return null;
     return tasks
-      .filter((t) => t.dueDate !== "")
-      .map((t) => [t.id, t.title, t.notes, t.dueDate, t.status === "done" ? "c" : "n"].join("|"))
+      .filter((t) => scheduledDate(t) !== "")
+      .map((t) => [t.id, t.title, t.notes, scheduledDate(t), t.status === "done" ? "c" : "n"].join("|"))
       .sort()
       .join("\n");
   }, [tasks]);
@@ -73,7 +73,7 @@ export function useTasksMirror(opts: {
         for (const op of ops) await applyMirrorOp(token, listIdRef.current, op);
         lastSynced.current = { boardId, fingerprint, at: Date.now() };
         lastFailureAt.current = 0;
-        const mirrored = (tasks ?? []).filter((t) => t.dueDate !== "" && t.status !== "done").length;
+        const mirrored = (tasks ?? []).filter((t) => scheduledDate(t) !== "" && t.status !== "done").length;
         setStatus({ state: "synced", at: Date.now(), mirrored });
       } catch (err) {
         // Offline, revoked scope, Tasks API disabled in the Cloud project, or a

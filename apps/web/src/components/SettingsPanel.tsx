@@ -153,7 +153,7 @@ function mirrorSummary(mirror: CalendarMirror): string {
       return "Syncing with Google Tasks…";
     case "synced":
       return mirror.status.mirrored === 0
-        ? "On — but no task has a due date yet, so there's nothing to show in Calendar"
+        ? "On — but no task has a date yet, so there's nothing to show in Calendar"
         : `On — ${mirror.status.mirrored} dated task${mirror.status.mirrored === 1 ? "" : "s"} mirrored`;
     case "error":
       return "Google rejected the last sync";
@@ -168,8 +168,8 @@ function CalendarSection({ mirror }: { mirror: CalendarMirror | null }) {
     return (
       <section className="settings-body" aria-label="Google Calendar sync">
         <p className="settings-intro">
-          Mirror tasks that have a due date into a &ldquo;Memoria&rdquo; Google Tasks list — they show up in
-          Google Calendar on their due date.
+          Mirror dated tasks into a &ldquo;Memoria&rdquo; Google Tasks list — anything with a due date, or
+          blocked until a date, shows up in Google Calendar on that date.
         </p>
         <p className="settings-intro">
           The sync toggle lives on the board — switch to the <strong>Todos</strong> tab and open this menu
@@ -184,10 +184,11 @@ function CalendarSection({ mirror }: { mirror: CalendarMirror | null }) {
   return (
     <section className="settings-body" aria-label="Google Calendar sync">
       <p className="settings-intro">
-        Mirror tasks that have a due date into a &ldquo;Memoria&rdquo; Google Tasks list — they show up in
-        Google Calendar on their due date. Only tasks with a <strong>due date</strong> that aren&rsquo;t done
-        are mirrored. One-way: the board stays the source of truth; edits in Google are overwritten on the
-        next sync.
+        Mirror dated tasks into a &ldquo;Memoria&rdquo; Google Tasks list, so they show up in Google Calendar
+        on their date. A task appears if it has a <strong>due date</strong> or is{" "}
+        <strong>blocked until</strong> a date, and isn&rsquo;t done — a task blocked until an <em>event</em>{" "}
+        (&ldquo;Trip done&rdquo;) has no date, so it can&rsquo;t be placed. One-way: the board stays the
+        source of truth; edits in Google are overwritten on the next sync.
       </p>
       <div className="mirror-row">
         <button

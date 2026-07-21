@@ -57,8 +57,37 @@ describe("planMirror", () => {
     ]);
   });
 
-  it("skips tasks without a due date", () => {
+  it("skips tasks with no date at all", () => {
     expect(planMirror(BOARD, [task("a", { dueDate: "" })], [])).toEqual([]);
+  });
+
+  it("mirrors a task blocked until a date, on that date", () => {
+    const ops = planMirror(BOARD, [task("a", { dueDate: "", blockedUntil: "2026-08-03" })], []);
+    expect(ops).toEqual([
+      {
+        kind: "create",
+        title: "Task a",
+        notes: mirrorMarker(BOARD, "a"),
+        due: "2026-08-03T00:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("skips a blocked-until that names an event — it has no date to sit on", () => {
+    expect(planMirror(BOARD, [task("a", { dueDate: "", blockedUntil: "Trip done" })], [])).toEqual([]);
+  });
+
+  it("re-dates the mirror when a blocked-until date moves", () => {
+    const blocked = task("a", { dueDate: "", blockedUntil: "2026-08-03" });
+    const ops = planMirror(BOARD, [blocked], [gtask("a")]); // mirror still on 2026-07-21
+    expect(ops).toEqual([{ kind: "patch", googleId: "g-a", fields: { due: "2026-08-03T00:00:00.000Z" } }]);
+  });
+
+  it("deletes the mirror when a blocked-until date becomes an event", () => {
+    const blocked = gtask("a", { due: "2026-08-03T00:00:00.000Z" });
+    expect(planMirror(BOARD, [task("a", { dueDate: "", blockedUntil: "Trip done" })], [blocked])).toEqual([
+      { kind: "delete", googleId: "g-a" },
+    ]);
   });
 
   it("never creates a mirror for an already-done task", () => {
