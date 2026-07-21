@@ -31,9 +31,11 @@ export function useTasksMirror(opts: {
   boardId: string | null;
   /** The board's current (projected) tasks, or null while loading. */
   tasks: readonly Task[] | null;
+  /** The board's done-role column id (or null) — tasks there mirror as completed. */
+  doneStatus: string | null;
   active: boolean;
 }): MirrorStatus {
-  const { token, boardId, tasks, active } = opts;
+  const { token, boardId, tasks, doneStatus, active } = opts;
   const [status, setStatus] = useState<MirrorStatus>({ state: "idle" });
 
   // Everything the mirror renders from, in one comparable string.
@@ -41,10 +43,10 @@ export function useTasksMirror(opts: {
     if (!tasks) return null;
     return tasks
       .filter((t) => scheduledDate(t) !== "")
-      .map((t) => [t.id, t.title, t.notes, scheduledDate(t), t.status === "done" ? "c" : "n"].join("|"))
+      .map((t) => [t.id, t.title, t.notes, scheduledDate(t), t.status === doneStatus ? "c" : "n"].join("|"))
       .sort()
       .join("\n");
-  }, [tasks]);
+  }, [tasks, doneStatus]);
 
   const running = useRef(false);
   const listIdRef = useRef<string | null>(null);
@@ -69,11 +71,13 @@ export function useTasksMirror(opts: {
       try {
         listIdRef.current ??= await ensureMemoriaList(token);
         const googleTasks = await listMirrorTasks(token, listIdRef.current);
-        const ops = planMirror(boardId, tasks ?? [], googleTasks);
+        const ops = planMirror(boardId, tasks ?? [], googleTasks, doneStatus);
         for (const op of ops) await applyMirrorOp(token, listIdRef.current, op);
         lastSynced.current = { boardId, fingerprint, at: Date.now() };
         lastFailureAt.current = 0;
-        const mirrored = (tasks ?? []).filter((t) => scheduledDate(t) !== "" && t.status !== "done").length;
+        const mirrored = (tasks ?? []).filter(
+          (t) => scheduledDate(t) !== "" && t.status !== doneStatus,
+        ).length;
         setStatus({ state: "synced", at: Date.now(), mirrored });
       } catch (err) {
         // Offline, revoked scope, Tasks API disabled in the Cloud project, or a
@@ -86,7 +90,7 @@ export function useTasksMirror(opts: {
         running.current = false;
       }
     })();
-  }, [active, token, boardId, fingerprint, tasks]);
+  }, [active, token, boardId, fingerprint, tasks, doneStatus]);
 
   return status;
 }

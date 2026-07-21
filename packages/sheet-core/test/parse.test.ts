@@ -105,11 +105,29 @@ describe("parseSheet — header errors", () => {
 });
 
 describe("parseSheet — row errors", () => {
-  it("reports the exact row and column for an invalid status", () => {
-    const bad = [
+  it("accepts an arbitrary custom status (columns are customizable)", () => {
+    const custom = [
       "id7",
       "Do a thing",
       "doing",
+      "0",
+      "",
+      "user",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    ];
+    const result = parseSheet([[...HEADERS], goodRow1, goodRow2, custom]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tasks.find((t) => t.id === "id7")?.status).toBe("doing");
+    }
+  });
+
+  it("reports the exact row and column for an empty status", () => {
+    const bad = [
+      "id7",
+      "Do a thing",
+      "",
       "0",
       "",
       "user",
@@ -121,10 +139,7 @@ describe("parseSheet — row errors", () => {
     if (!result.ok) {
       expect(result.error.row).toBe(4);
       expect(result.error.column).toBe("status");
-      expect(result.error.value).toBe("doing");
-      expect(result.error.message).toBe(
-        `Row 4: status "doing" isn't one of backlog · in_progress · blocked · done · admin_renewals · health_checks.`,
-      );
+      expect(result.error.message).toBe("Row 4: status is required but was empty.");
     }
   });
 

@@ -1,7 +1,7 @@
 import { parseItemRows, type SheetError } from "./grid.js";
 import { HEADERS, LEGACY_HEADER_SHAPES } from "./headers.js";
 import { RowValidationError, rowToTask } from "./serialize.js";
-import { STATUSES, type SheetRow, type Task } from "./types.js";
+import type { SheetRow, Task } from "./types.js";
 
 export type { SheetError } from "./grid.js";
 
@@ -64,7 +64,7 @@ function fieldErrorMessage(row: number, err: RowValidationError): SheetError {
       message = `Row ${row}: title is required but was empty.`;
       break;
     case "status":
-      message = `Row ${row}: status "${value}" isn't one of ${STATUSES.join(" · ")}.`;
+      message = `Row ${row}: status is required but was empty.`;
       break;
     case "sort_order":
       message = `Row ${row}: sort_order "${value}" isn't a number.`;

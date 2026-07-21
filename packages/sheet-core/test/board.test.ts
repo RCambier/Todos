@@ -60,10 +60,18 @@ describe("listTasks", () => {
     expect(tasks.map((t) => t.id)).toEqual(["d1"]);
   });
 
-  it("throws MalformedSheetError with the precise sheet-core message when the sheet is invalid", async () => {
-    const store = new FakeSheetStore([row("b1", "A", "doing", 1)]);
+  it("keeps a task whose status isn't a known column, after the known columns", async () => {
+    // Custom statuses are valid data now (a column may have been renamed or
+    // removed) — such tasks are never dropped, they follow the known columns.
+    const store = new FakeSheetStore([row("b1", "A", "backlog", 1), row("x1", "Orphan", "someday", 1)]);
+    const tasks = await board.listTasks(store);
+    expect(tasks.map((t) => t.id)).toEqual(["b1", "x1"]);
+  });
+
+  it("throws MalformedSheetError with the precise sheet-core message when a status is empty", async () => {
+    const store = new FakeSheetStore([row("b1", "A", "", 1)]);
     await expect(board.listTasks(store)).rejects.toThrow(MalformedSheetError);
-    await expect(board.listTasks(store)).rejects.toThrow(/status "doing" isn't one of/);
+    await expect(board.listTasks(store)).rejects.toThrow(/status is required but was empty/);
   });
 });
 
@@ -127,7 +135,7 @@ describe("appendTaskIfAbsent (replay safety)", () => {
   });
 
   it("refuses to append onto a malformed sheet (source of truth is unreadable)", async () => {
-    const store = new FakeSheetStore([row("b1", "A", "doing", 1)]);
+    const store = new FakeSheetStore([row("b1", "A", "", 1)]);
     const task = board.buildTask([], { title: "New" }, "user");
     await expect(board.appendTaskIfAbsent(store, task)).rejects.toThrow(MalformedSheetError);
   });

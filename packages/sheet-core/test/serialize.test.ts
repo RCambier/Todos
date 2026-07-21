@@ -147,11 +147,25 @@ describe("rowToTask", () => {
     expect(() => rowToTask(row)).toThrow(RowValidationError);
   });
 
-  it("throws RowValidationError on invalid status", () => {
+  it("accepts an arbitrary custom status (columns are customizable)", () => {
     const row = [
       "id1",
       "Buy milk",
       "doing",
+      "0",
+      "",
+      "user",
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    ];
+    expect(rowToTask(row).status).toBe("doing");
+  });
+
+  it("throws RowValidationError on an empty status", () => {
+    const row = [
+      "id1",
+      "Buy milk",
+      "",
       "0",
       "",
       "user",
@@ -164,7 +178,6 @@ describe("rowToTask", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(RowValidationError);
       expect((err as RowValidationError).column).toBe("status");
-      expect((err as RowValidationError).value).toBe("doing");
     }
   });
 

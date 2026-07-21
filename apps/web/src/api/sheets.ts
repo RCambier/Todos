@@ -1,4 +1,6 @@
 import {
+  COLUMNS_HEADERS,
+  COLUMNS_TAB_NAME,
   HEADERS,
   MEMORIES_HEADERS,
   MEMORIES_TAB_NAME,
@@ -23,6 +25,8 @@ export interface SheetTab {
 export const TASKS_TAB: SheetTab = { name: SHEET_TAB_NAME, headers: HEADERS };
 export const NOTES_TAB: SheetTab = { name: NOTES_TAB_NAME, headers: NOTES_HEADERS };
 export const MEMORIES_TAB: SheetTab = { name: MEMORIES_TAB_NAME, headers: MEMORIES_HEADERS };
+/** The Todos board's per-board column configuration (customizable columns). */
+export const COLUMNS_TAB: SheetTab = { name: COLUMNS_TAB_NAME, headers: COLUMNS_HEADERS };
 
 /** Last column letter, derived from the header count so it can't drift from the schema. */
 function lastColumn(tab: SheetTab): string {
@@ -96,6 +100,46 @@ export async function listTabs(
       ? [{ title: s.properties.title, sheetId: s.properties.sheetId }]
       : [],
   );
+}
+
+/** Adds a new tab with the given title, returning its internal numeric sheetId. */
+export async function addTab(token: string, spreadsheetId: string, title: string): Promise<number> {
+  const data = await authedJson<{ replies?: { addSheet?: { properties?: { sheetId?: number } } }[] }>(
+    token,
+    `${BASE}/${spreadsheetId}:batchUpdate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
+    },
+  );
+  const sheetId = data.replies?.[0]?.addSheet?.properties?.sheetId;
+  if (sheetId == null) throw new Error(`Failed to create the "${title}" tab.`);
+  return sheetId;
+}
+
+/** Clears every value in a tab (leaves the tab itself in place). */
+export async function clearTab(token: string, spreadsheetId: string, tab: SheetTab): Promise<void> {
+  const url = `${BASE}/${spreadsheetId}/values/${encodeURIComponent(fullRange(tab))}:clear`;
+  await authedFetch(token, url, { method: "POST" });
+}
+
+/** Overwrites a whole tab with `rows` (clearing any leftover trailing rows first). */
+export async function overwriteTab(
+  token: string,
+  spreadsheetId: string,
+  tab: SheetTab,
+  rows: string[][],
+): Promise<void> {
+  await clearTab(token, spreadsheetId, tab);
+  const end = `${lastColumn(tab)}${Math.max(rows.length, 1)}`;
+  const range = `${tab.name}!A1:${end}`;
+  const url = `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW`;
+  await authedFetch(token, url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values: rows }),
+  });
 }
 
 /** Renames one tab (used when bootstrapping an empty picked sheet, so ranges resolve). */

@@ -1,10 +1,41 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as board from "@memoria/sheet-core";
-import { MAX_CELL_CHARS, STATUSES, type Memory, type Note, type Task } from "@memoria/sheet-core";
+import {
+  columnIds,
+  doneColumnId,
+  MAX_CELL_CHARS,
+  type BoardColumn,
+  type Memory,
+  type Note,
+  type Task,
+} from "@memoria/sheet-core";
 import { z } from "zod";
-import { resolveBoard, resolveMemories, resolveNotes, type MemoriaCatalog } from "./catalog.js";
+import {
+  resolveBoard,
+  resolveBoardWithColumns,
+  resolveMemories,
+  resolveNotes,
+  type MemoriaCatalog,
+} from "./catalog.js";
 
-const statusSchema = z.enum(STATUSES);
+// A status is a column id — customizable per board, so it's validated at call
+// time against the board's actual columns rather than pinned to a fixed enum.
+const statusSchema = z
+  .string()
+  .min(1)
+  .describe("A column id — call list_boards to see a board's columns. Custom per board.");
+
+/** Human-readable list of a board's columns for an error or description. */
+function columnListing(columns: readonly BoardColumn[]): string {
+  return columns.map((c) => `${c.id} ("${c.label}")`).join(", ");
+}
+
+/** Throws a helpful error if `status` isn't one of the board's column ids. */
+function assertKnownStatus(status: string, columns: readonly BoardColumn[]): void {
+  if (!columnIds(columns).includes(status)) {
+    throw new Error(`"${status}" isn't a column on this board. Valid columns: ${columnListing(columns)}.`);
+  }
+}
 
 const boardIdSchema = z
   .string()
@@ -143,13 +174,27 @@ function errorResult(err: unknown): { content: [{ type: "text"; text: string }];
 export function registerTools(server: McpServer, catalog: MemoriaCatalog): void {
   server.tool(
     "list_boards",
-    "List the account's boards (id, name, last modified; newest first). Pass a board's id as " +
-      "board_id to the other tools; with exactly one board, board_id can be omitted everywhere.",
+    "List the account's boards (id, name, last modified; newest first) and each board's " +
+      "columns. Columns are customizable per board — use their ids as the status value for " +
+      "add_task / move_task / list_tasks. Pass a board's id as board_id to the other tools; " +
+      "with exactly one board, board_id can be omitted everywhere.",
     {},
     async () => {
       try {
         const boards = await catalog.listBoards();
-        return { content: [{ type: "text", text: JSON.stringify(boards, null, 2) }] };
+        const withColumns = await Promise.all(
+          boards.map(async (b) => ({
+            ...b,
+            columns: (await catalog.readColumns(b.id)).map((c) => ({
+              id: c.id,
+              label: c.label,
+              ...(c.done ? { done: true } : {}),
+              ...(c.blocked ? { blocked: true } : {}),
+              ...(c.hidden ? { hidden: true } : {}),
+            })),
+          })),
+        );
+        return { content: [{ type: "text", text: JSON.stringify(withColumns, null, 2) }] };
       } catch (err) {
         return errorResult(err);
       }
@@ -158,17 +203,17 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "list_tasks",
-    "List tasks on a board, in board order (backlog, in_progress, blocked, done, then the " +
-      "long-horizon columns admin_renewals and health_checks; top to bottom within each). " +
-      "Optionally filter to a single status.",
+    "List tasks on a board, in board order (left-to-right by column, top to bottom within " +
+      "each). Columns are customizable — see list_boards. Optionally filter to a single " +
+      "status (column id).",
     {
       board_id: boardIdSchema,
-      status: statusSchema.optional().describe("Only return tasks in this column."),
+      status: statusSchema.optional().describe("Only return tasks in this column (a column id)."),
     },
     async ({ board_id, status }) => {
       try {
-        const client = await resolveBoard(catalog, board_id);
-        const tasks = await board.listTasks(client, status);
+        const { store, columns } = await resolveBoardWithColumns(catalog, board_id);
+        const tasks = await board.listTasks(store, status, columnIds(columns));
         return { content: [{ type: "text", text: JSON.stringify(tasks, null, 2) }] };
       } catch (err) {
         return errorResult(err);
@@ -178,13 +223,14 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "add_task",
-    "Create a new task and insert it at the top of the given column (default: backlog). " +
-      "Tasks created this way are tagged source=agent.",
+    "Create a new task and insert it at the top of the given column (a column id; defaults to " +
+      "the board's first column). Columns are customizable — see list_boards. Tasks created " +
+      "this way are tagged source=agent.",
     {
       board_id: boardIdSchema,
       title: z.string().min(1, "title is required").max(MAX_CELL_CHARS),
       notes: z.string().max(MAX_CELL_CHARS).optional(),
-      status: statusSchema.optional().describe("Defaults to backlog."),
+      status: statusSchema.optional().describe("Column id; defaults to the board's first column."),
       due_date: dueDateSchema,
       blocked_until: blockedUntilSchema,
       recurs: recursSchema,
@@ -193,11 +239,13 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
     async ({ board_id, title, notes, status, due_date, blocked_until, recurs, tags }) => {
       try {
         if (bothScheduled(due_date, blocked_until)) throw new Error(BOTH_SCHEDULED_MESSAGE);
-        const client = await resolveBoard(catalog, board_id);
+        const { store, columns } = await resolveBoardWithColumns(catalog, board_id);
+        if (status !== undefined) assertKnownStatus(status, columns);
         const task = await board.addTask(
-          client,
+          store,
           { title, notes, status, dueDate: due_date, blockedUntil: blocked_until, recurs, tags },
           "agent",
+          columnIds(columns)[0] ?? board.DEFAULT_STATUS,
         );
         return { content: [{ type: "text", text: taskText(task) }] };
       } catch (err) {
@@ -241,12 +289,14 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "move_task",
-    "Move a task to a different column, placing it at the top of that column.",
+    "Move a task to a different column (a column id — see list_boards), placing it at the top " +
+      "of that column.",
     { board_id: boardIdSchema, id: z.string().min(1), status: statusSchema },
     async ({ board_id, id, status }) => {
       try {
-        const client = await resolveBoard(catalog, board_id);
-        const task = await board.moveTask(client, id, status);
+        const { store, columns } = await resolveBoardWithColumns(catalog, board_id);
+        assertKnownStatus(status, columns);
+        const task = await board.moveTask(store, id, status, undefined, doneColumnId(columns) ?? "done");
         return { content: [{ type: "text", text: taskText(task) }] };
       } catch (err) {
         return errorResult(err);
@@ -256,13 +306,21 @@ export function registerTools(server: McpServer, catalog: MemoriaCatalog): void 
 
   server.tool(
     "complete_task",
-    "Mark a task done. Shorthand for move_task with status=done. Completing a yearly " +
-      "recurring task advances its date one year instead of finishing it.",
+    "Mark a task done — moves it to the board's Done column (the column with the done role; " +
+      "see list_boards). Completing a yearly recurring task advances its date one year " +
+      "instead of finishing it.",
     { board_id: boardIdSchema, id: z.string().min(1) },
     async ({ board_id, id }) => {
       try {
-        const client = await resolveBoard(catalog, board_id);
-        const task = await board.completeTask(client, id);
+        const { store, columns } = await resolveBoardWithColumns(catalog, board_id);
+        const done = doneColumnId(columns);
+        if (!done) {
+          throw new Error(
+            "This board has no Done column. Open the web app's board settings and mark a " +
+              "column as Done, or use move_task with a specific column id.",
+          );
+        }
+        const task = await board.completeTask(store, id, done);
         return { content: [{ type: "text", text: taskText(task) }] };
       } catch (err) {
         return errorResult(err);

@@ -362,11 +362,16 @@ input {
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 4px;
+  /* Colors come from inline --pill-* custom properties set per column
+     (lib/statusMeta.ts); the fallbacks keep any un-styled pill legible. */
+  background: var(--pill-bg, var(--status-backlog-bg));
+  color: var(--pill-fg, var(--status-backlog));
 }
 .status-pill .sdot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background: var(--pill-dot, var(--status-backlog-dot));
 }
 .pill-backlog {
   background: var(--status-backlog-bg);
@@ -1459,9 +1464,145 @@ kbd {
   justify-content: space-between;
   gap: 12px;
 }
+/* Section nav for the unified settings dialog — a segmented row of panes. */
+.settings-nav {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface, #f4f2ec);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.settings-nav button {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.settings-nav button:hover {
+  color: var(--ink);
+}
+.settings-nav button.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(15, 15, 15, 0.08);
+}
+
 .settings-body {
   display: flex;
   flex-direction: column;
+}
+
+/* Board-columns editor: one row per column, with roles and reorder controls. */
+.col-editor {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.col-editor-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "swatch name actions" "roles roles roles";
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.col-editor-swatch {
+  grid-area: swatch;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pill-dot, var(--status-backlog-dot));
+}
+.col-editor-name {
+  grid-area: name;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  min-width: 0;
+}
+.col-editor-roles {
+  grid-area: roles;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.col-editor-roles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.col-editor-roles input {
+  accent-color: var(--status-done-dot);
+}
+.col-editor-actions {
+  grid-area: actions;
+  display: flex;
+  gap: 4px;
+}
+.col-editor-actions button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.col-editor-actions button:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.col-editor-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.col-editor-actions button.danger:hover:not(:disabled) {
+  color: var(--status-blocked);
+  border-color: var(--status-blocked-dot);
+}
+.col-editor-add {
+  margin-top: 10px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.col-editor-add:hover {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+.col-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .settings-panel h3 {
   font-size: 13px;

@@ -63,8 +63,10 @@ export function resolveMove(
   task: Pick<Schedule, "dueDate" | "blockedUntil"> & { recurs: string },
   status: string,
   today: string,
+  /** Which column counts as "done" for this board (the recurrence trigger). */
+  doneStatus: string = "done",
 ): { redated: Partial<Schedule> | null } {
-  if (status !== "done" || task.recurs !== "yearly") return { redated: null };
+  if (status !== doneStatus || task.recurs !== "yearly") return { redated: null };
   if (task.dueDate !== "") return { redated: { dueDate: nextYearlyDate(task.dueDate, today) } };
   if (DATE_ONLY_RE.test(task.blockedUntil)) {
     return { redated: { blockedUntil: nextYearlyDate(task.blockedUntil, today) } };

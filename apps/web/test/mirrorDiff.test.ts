@@ -130,6 +130,19 @@ describe("planMirror", () => {
     ]);
   });
 
+  it("uses the board's designated done column, not the literal 'done'", () => {
+    // A custom board whose done column is "shipped": a task there completes its
+    // mirror, and a task in the literal "done" column does not.
+    expect(planMirror(BOARD, [task("a", { status: "shipped" })], [gtask("a")], "shipped")).toEqual([
+      { kind: "patch", googleId: "g-a", fields: { status: "completed" } },
+    ]);
+    expect(planMirror(BOARD, [task("a", { status: "done" })], [gtask("a")], "shipped")).toEqual([]);
+  });
+
+  it("with no done column, nothing is ever completed", () => {
+    expect(planMirror(BOARD, [task("a", { status: "done" })], [gtask("a")], null)).toEqual([]);
+  });
+
   it("deletes mirrors whose task vanished or lost its due date", () => {
     expect(planMirror(BOARD, [], [gtask("gone")])).toEqual([{ kind: "delete", googleId: "g-gone" }]);
     expect(planMirror(BOARD, [task("a", { dueDate: "" })], [gtask("a")])).toEqual([

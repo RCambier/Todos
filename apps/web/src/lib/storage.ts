@@ -1,4 +1,12 @@
-import type { Memory, MemoryPendingOp, Note, NotePendingOp, PendingOp, Task } from "@memoria/sheet-core";
+import type {
+  BoardColumn,
+  Memory,
+  MemoryPendingOp,
+  Note,
+  NotePendingOp,
+  PendingOp,
+  Task,
+} from "@memoria/sheet-core";
 
 /** Pre-simplification keys: one cached sheet + its kind. Read once as a migration source. */
 const LEGACY_SPREADSHEET_ID_KEY = "todos:spreadsheetId";
@@ -7,6 +15,7 @@ const SHEET_ID_KEY_PREFIX = "todos:sheet:";
 const ACTIVE_KIND_KEY = "todos:activeKind";
 const REPLICA_KEY_PREFIX = "todos:replica:";
 const OUTBOX_KEY_PREFIX = "todos:outbox:";
+const COLUMNS_KEY_PREFIX = "todos:columns:";
 const CALENDAR_MIRROR_KEY = "todos:calendarMirror";
 const NOTES_REPLICA_KEY_PREFIX = "todos:notes-replica:";
 const NOTES_OUTBOX_KEY_PREFIX = "todos:notes-outbox:";
@@ -139,6 +148,27 @@ export function writeOutbox(
   store: KeyValueStore = localStorage,
 ): void {
   writeJson(store, OUTBOX_KEY_PREFIX + spreadsheetId, ops);
+}
+
+/**
+ * Cached column configuration per board, so the board paints its columns
+ * instantly on reload (before the `Columns` tab is re-read). Purely an
+ * optimization — the sheet is the source of truth.
+ */
+export function readColumnsCache(
+  spreadsheetId: string,
+  store: KeyValueStore = localStorage,
+): BoardColumn[] | null {
+  const columns = readJson<BoardColumn[]>(store, COLUMNS_KEY_PREFIX + spreadsheetId);
+  return Array.isArray(columns) ? columns : null;
+}
+
+export function writeColumnsCache(
+  spreadsheetId: string,
+  columns: BoardColumn[],
+  store: KeyValueStore = localStorage,
+): void {
+  writeJson(store, COLUMNS_KEY_PREFIX + spreadsheetId, columns);
 }
 
 /** The notes twin of the replica/outbox pair, one per notes spreadsheet. */

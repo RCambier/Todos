@@ -12,13 +12,17 @@ interface CardProps {
   /** Position within the destination column's rendered list — the draggable index. */
   index: number;
   readOnly: boolean;
+  /** True when this card sits in the board's done-role column (struck through, no complete action). */
+  isDone: boolean;
+  /** Label of the done column, for the "Move to …" menu item. */
+  doneLabel: string;
   /** Opens the task detail dialog: click → view, menu → edit / confirm delete. */
   onOpen: (mode: TaskDetailMode) => void;
-  /** Marks the task done (moves it to the top of the Done column). */
-  onComplete: () => void;
+  /** Marks the task done (moves it to the done column). Absent when the board has no done column. */
+  onComplete?: () => void;
 }
 
-export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
+export function Card({ task, index, readOnly, isDone, doneLabel, onOpen, onComplete }: CardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const tagClass = useTagColors();
 
@@ -47,7 +51,7 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
           <div ref={provided.innerRef} {...provided.draggableProps} style={style}>
             <div
               {...provided.dragHandleProps}
-              className={`card${task.status === "done" ? " done" : ""}${snapshot.isDragging ? " dragging" : ""}`}
+              className={`card${isDone ? " done" : ""}${snapshot.isDragging ? " dragging" : ""}`}
               onClick={() => onOpen("view")}
               title="Open task"
             >
@@ -79,7 +83,7 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
                           }}
                         />
                         <div className="menu-pop" role="menu">
-                          {task.status !== "done" && (
+                          {!isDone && onComplete && (
                             <button
                               type="button"
                               role="menuitem"
@@ -90,7 +94,7 @@ export function Card({ task, index, readOnly, onOpen, onComplete }: CardProps) {
                                 onComplete();
                               }}
                             >
-                              Move to Done
+                              Move to {doneLabel}
                             </button>
                           )}
                           <button type="button" role="menuitem" className="menu-item" onClick={pick("edit")}>

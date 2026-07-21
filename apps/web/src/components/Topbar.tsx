@@ -4,6 +4,7 @@ import type { UserProfile } from "../auth/googleAuth.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
 import { AgentMark } from "./AgentMark.js";
 import { Logo } from "./Logo.js";
+import type { SettingsSection } from "./SettingsPanel.js";
 
 /** Sync status shape shared by the board and notes views. */
 type ViewStatus = "loading" | "ready" | "malformed" | "error";
@@ -29,7 +30,7 @@ interface TopbarProps {
   /** Which kinds have a connected sheet — a kind without one routes to setup on click. */
   connectedKinds: Record<CollectionKind, boolean>;
   onSelectKind: (kind: CollectionKind) => void;
-  onOpenSettings: (section: "agents" | "calendar") => void;
+  onOpenSettings: (section: SettingsSection) => void;
   onSignOut: () => void;
 }
 
@@ -61,6 +62,17 @@ function SheetIcon() {
   );
 }
 
+/** Columns glyph for the "Customize board columns" menu entry. */
+function ColumnsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="3.6" height="11" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="6.2" y="2.5" width="3.6" height="11" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="10.9" y="2.5" width="3.6" height="11" rx="1" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 /** Calendar glyph for the "Sync with Google Calendar" menu entry. */
 function CalendarIcon() {
   return (
@@ -80,9 +92,10 @@ function CalendarIcon() {
 function AccountMenu({
   profile,
   sheetUrl,
+  activeKind,
   onSignOut,
   onOpenSettings,
-}: Pick<TopbarProps, "profile" | "onSignOut" | "onOpenSettings"> & {
+}: Pick<TopbarProps, "profile" | "onSignOut" | "onOpenSettings" | "activeKind"> & {
   /** Null when the active kind has no connected sheet — the Sheets link is hidden. */
   sheetUrl: string | null;
 }) {
@@ -143,6 +156,18 @@ function AccountMenu({
               </a>
               <div className="menu-divider" />
             </>
+          )}
+          {activeKind === "board" && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenSettings("columns");
+              }}
+            >
+              <ColumnsIcon /> Customize board columns
+            </button>
           )}
           <button
             type="button"
@@ -273,6 +298,7 @@ export function Topbar({
       <AccountMenu
         profile={profile}
         sheetUrl={sheetUrl}
+        activeKind={activeKind}
         onSignOut={onSignOut}
         onOpenSettings={onOpenSettings}
       />

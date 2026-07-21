@@ -138,10 +138,22 @@ React + TypeScript + Vite static SPA. No backend of any kind.
 Dependency-free TypeScript. The single definition of what a valid sheet is
 **and of the safe mutations on it**. Used by both other packages. Exports:
 
-- `Task` type and `Status` enum (`backlog` | `in_progress` | `blocked` |
-  `done`, plus the hidden long-horizon columns `admin_renewals` |
-  `health_checks` — the web app folds those away by default behind the
-  board's right-edge rail; the data model treats every status the same).
+- `Task` type; `Status` is an open string — **a task's status is a column
+  id**, and columns are customizable per board (see below), so a status is
+  valid as long as it's non-empty. A task pointing at a deleted column is
+  still valid data (the board folds it into a synthesized column); the model
+  never rejects it.
+- `BoardColumn` type and the columns model (`columns.ts`): each board's
+  columns live in a `Columns` tab (`id, label, sort_order, done, blocked,
+  hidden`). Roles are optional per-column flags — `done` (the ✓ / agents'
+  `complete_task` land here, and the calendar mirror treats it as finished),
+  `blocked` (a task gaining a blocked-until date auto-moves here), and
+  `hidden` (folded away behind the board's right-edge rail). `DEFAULT_NEW_COLUMNS`
+  (Backlog / In progress / Done) seeds brand-new boards; `LEGACY_COLUMNS`
+  (the historical six) is the migration target for boards created before
+  customization — so an existing board keeps exactly the columns it always
+  showed. `parseColumnsSheet` is deliberately lenient (settings, not task
+  data): a malformed row is skipped, never fatal.
 - `HEADERS`, sheet/tab name constants.
 - `parseSheet(rows) → { ok: true, tasks } | { ok: false, error }` where
   `error` pinpoints row, column, and offending value in a human sentence.
@@ -182,12 +194,12 @@ re-locates the row by ID first, exactly like the web app):
 
 | tool                    | input                                                                                        | behavior                     |
 | ----------------------- | -------------------------------------------------------------------------------------------- | ---------------------------- |
-| `list_boards`           | —                                                                                            | boards (id, name, modified)  |
-| `list_tasks`            | optional `status` filter                                                                     | tasks in board order         |
-| `add_task`              | `title`, optional `notes`, `status` (default `backlog`), `due_date`, `blocked_until`, `tags` | insert at top of column      |
+| `list_boards`           | —                                                                                            | boards (id, name, modified) + each board's columns |
+| `list_tasks`            | optional `status` filter (a column id)                                                       | tasks in board order         |
+| `add_task`              | `title`, optional `notes`, `status` (a column id; default = board's first column), `due_date`, `blocked_until`, `tags` | insert at top of column |
 | `update_task`           | `id`, optional `title`, `notes`, `due_date`, `blocked_until`, `tags`                         | edit fields                  |
-| `move_task`             | `id`, `status`                                                                               | move to top of target column |
-| `complete_task`         | `id`                                                                                         | sugar for `move_task(done)`  |
+| `move_task`             | `id`, `status` (a column id, validated against the board)                                    | move to top of target column |
+| `complete_task`         | `id`                                                                                         | move to the board's `done`-role column |
 | `delete_task`           | `id`                                                                                         | delete that row              |
 | `list_note_collections` | —                                                                                            | notes collections            |
 | `list_notes`            | —                                                                                            | notes, newest-edited first   |
@@ -391,7 +403,7 @@ One tab named `Tasks`. Row 1 is the header, frozen. Columns:
 | ------------ | --------------- | -------------------------------------------------------------------- |
 | `id`         | string          | stable random ID, never reused                                       |
 | `title`      | string          | required, non-empty                                                  |
-| `status`     | enum            | `backlog` \| `in_progress` \| `blocked` \| `done` \| `admin_renewals` \| `health_checks` |
+| `status`     | string          | a **column id** — customizable per board (see _Board columns_ below); required, non-empty |
 | `sort_order` | number          | ascending within a column = top→bottom                               |
 | `notes`      | string          | optional                                                             |
 | `source`     | string          | `user` or `agent`; informational only                                |
@@ -404,7 +416,8 @@ One tab named `Tasks`. Row 1 is the header, frozen. Columns:
 
 Validation rules (enforced identically by both clients via `sheet-core`):
 header row must match exactly; `id`, `title`, `status` required;
-`status` must be in the enum; `sort_order` must be numeric; `due_date`, if
+`status` must be non-empty (any column id — see _Board columns_);
+`sort_order` must be numeric; `due_date`, if
 present, must be `YYYY-MM-DD`. `blocked_until` is free-form by design — a
 value matching `YYYY-MM-DD` is treated as a date (the block lifts that
 day), anything else as an event the user clears by hand. Empty rows are
@@ -422,6 +435,28 @@ new fields empty), and the web app extends the header row in place the
 first time it loads such a board — an additive write of the new header
 cells that never touches task rows. This keeps existing boards working
 without a migration step.
+
+**Board columns**: a Todos sheet also has a `Columns` tab defining its
+columns (customizable per board). Header `id, label, sort_order, done,
+blocked, hidden`, one row per column. `done` / `blocked` / `hidden` are role
+flags (`"1"` / empty); `done` and `blocked` are single per board (first row
+claiming each wins on parse). A board with **no** `Columns` tab (every board
+created before this feature) is migrated in place on first web-app load to
+`LEGACY_COLUMNS` — the historical six — so nothing about an existing board
+changes; brand-new boards are created with `DEFAULT_NEW_COLUMNS` (Backlog /
+In progress / Done). The hosted MCP connector *reads* columns (reporting the
+legacy set for an un-migrated board) but never writes them. Reads/parses via
+`parseColumnsSheet`, which is lenient — the columns config is settings, not
+task data, so a bad row is skipped rather than making the board read-only.
+The behaviors bound to roles: the card ✓ and `complete_task` move a task to
+the `done` column; giving a task a blocked-until date auto-moves it to the
+`blocked` column (and clearing it releases the task); `hidden` columns fold
+away behind the board's right-edge rail. With a role unset, its behavior
+simply doesn't fire. Column edits (rename / reorder / add / remove / roles)
+happen in the web app's settings and are a whole-tab overwrite — the only
+place the app writes a whole grid, justified because reordering inherently
+rewrites the small config tab; task rows are still only ever touched one at
+a time.
 
 **Ordering**: `sort_order` is a float. Insert at top = `min(column) − 1`
 (or `0` for an empty column). Drop between two cards = midpoint. No global

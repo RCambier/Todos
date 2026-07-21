@@ -67,6 +67,9 @@ export interface NewTaskInput {
   recurs?: Recurrence;
 }
 
+/** The status a task lands in when the caller names none — the historical first column. */
+export const DEFAULT_STATUS: Status = "backlog";
+
 /** Pure: builds the `Task` for a new entry, given the sort orders already in its column. */
 export function buildTask(columnOrders: readonly number[], input: NewTaskInput, source: Source): Task {
   assertCellLimits({ title: input.title, notes: input.notes });
@@ -74,7 +77,7 @@ export function buildTask(columnOrders: readonly number[], input: NewTaskInput, 
   return {
     id: generateId(),
     title: input.title,
-    status: input.status ?? "backlog",
+    status: input.status ?? DEFAULT_STATUS,
     sortOrder: topSortOrder(columnOrders),
     notes: input.notes ?? "",
     source,
@@ -106,16 +109,35 @@ export async function appendTaskIfAbsent(store: SheetStore, task: Task): Promise
   await store.appendRow(taskToRow(task));
 }
 
-export async function listTasks(store: SheetStore, status?: Status): Promise<Task[]> {
+/**
+ * Lists tasks in board order. `columnOrder` (a board's column ids, left to
+ * right — from the `Columns` tab) drives the grouping; it defaults to the
+ * legacy id set. Tasks whose status isn't in the order still appear, after
+ * the known columns (see `boardOrder`).
+ */
+export async function listTasks(
+  store: SheetStore,
+  status?: Status,
+  columnOrder: readonly string[] = STATUSES,
+): Promise<Task[]> {
   const { tasks } = await readValidTasks(store);
   const filtered = status ? tasks.filter((t) => t.status === status) : tasks;
-  return boardOrder(filtered, STATUSES);
+  return boardOrder(filtered, columnOrder);
 }
 
-/** Reads the board, builds the task at the top of its column, and appends it. */
-export async function addTask(store: SheetStore, input: NewTaskInput, source: Source): Promise<Task> {
+/**
+ * Reads the board, builds the task at the top of its column, and appends it.
+ * With no explicit status the task lands in `defaultStatus` (a board's first
+ * column, or the legacy default).
+ */
+export async function addTask(
+  store: SheetStore,
+  input: NewTaskInput,
+  source: Source,
+  defaultStatus: Status = DEFAULT_STATUS,
+): Promise<Task> {
   const { tasks } = await readValidTasks(store);
-  const status = input.status ?? "backlog";
+  const status = input.status ?? defaultStatus;
   const columnOrders = tasks.filter((t) => t.status === status).map((t) => t.sortOrder);
   const task = buildTask(columnOrders, { ...input, status }, source);
   await appendTask(store, task);
@@ -171,13 +193,14 @@ export async function moveTask(
   id: string,
   status: Status,
   sortOrder?: number,
+  doneStatus: Status = "done",
 ): Promise<Task> {
   const { tasks, rawRows } = await readValidTasks(store);
   const current = tasks.find((t) => t.id === id);
   if (!current) throw new TaskNotFoundError(id);
 
   const now = new Date();
-  const { redated } = resolveMove(current, status, now.toISOString().slice(0, 10));
+  const { redated } = resolveMove(current, status, now.toISOString().slice(0, 10), doneStatus);
   const updated: Task = redated
     ? { ...current, ...mergeSchedule(current, redated), updatedAt: now.toISOString() }
     : {
@@ -193,8 +216,12 @@ export async function moveTask(
   return updated;
 }
 
-export async function completeTask(store: SheetStore, id: string): Promise<Task> {
-  return moveTask(store, id, "done");
+export async function completeTask(
+  store: SheetStore,
+  id: string,
+  doneStatus: Status = "done",
+): Promise<Task> {
+  return moveTask(store, id, doneStatus, undefined, doneStatus);
 }
 
 export async function deleteTask(store: SheetStore, id: string): Promise<void> {

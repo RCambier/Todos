@@ -1,4 +1,4 @@
-import type { Status, Task } from "./types.js";
+import type { Task } from "./types.js";
 
 /**
  * `sort_order` is a float. Ascending within a column = top to bottom.
@@ -32,7 +32,17 @@ export function sortByOrder(tasks: readonly Task[]): Task[] {
   return [...tasks].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-/** Groups and sorts tasks into board order: each status column, top to bottom. */
-export function boardOrder(tasks: readonly Task[], statuses: readonly Status[]): Task[] {
-  return statuses.flatMap((status) => sortByOrder(tasks.filter((t) => t.status === status)));
+/**
+ * Groups and sorts tasks into board order: each status column, top to
+ * bottom, in the given column order. Tasks whose status isn't among
+ * `statuses` (e.g. a column was deleted) are never dropped — they follow the
+ * known columns, grouped by their orphaned status, so no task ever
+ * disappears from a listing.
+ */
+export function boardOrder(tasks: readonly Task[], statuses: readonly string[]): Task[] {
+  const known = new Set(statuses);
+  const ordered = statuses.flatMap((status) => sortByOrder(tasks.filter((t) => t.status === status)));
+  const orphanStatuses = [...new Set(tasks.filter((t) => !known.has(t.status)).map((t) => t.status))].sort();
+  const orphans = orphanStatuses.flatMap((status) => sortByOrder(tasks.filter((t) => t.status === status)));
+  return [...ordered, ...orphans];
 }

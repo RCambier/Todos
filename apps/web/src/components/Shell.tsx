@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { blockedColumnId, columnIds, doneColumnId } from "@memoria/sheet-core";
+import { useMemo, useState } from "react";
 import type { Collection, CollectionKind } from "../api/drive.js";
 import type { UserProfile } from "../auth/googleAuth.js";
 import { beginTasksConsent } from "../auth/session.js";
 import { useBoard } from "../board/useBoard.js";
+import { useColumns } from "../board/useColumns.js";
 import { useTasksMirror } from "../calendar/useTasksMirror.js";
 import { getCalendarMirrorEnabled, setCalendarMirrorEnabled } from "../lib/storage.js";
 import { useBackClose } from "../lib/useBackClose.js";
@@ -14,8 +16,12 @@ import { KindEmpty } from "./KindEmpty.js";
 import { MalformedBanner } from "./MalformedBanner.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { NotesGrid } from "./NotesGrid.js";
-import { SettingsPanel } from "./SettingsPanel.js";
+import { SettingsPanel, type SettingsSection } from "./SettingsPanel.js";
 import { Topbar } from "./Topbar.js";
+
+/** The settings panes available off the board view (the others omit "columns"). */
+const BOARD_SECTIONS: readonly SettingsSection[] = ["columns", "agents", "calendar"];
+const NON_BOARD_SECTIONS: readonly SettingsSection[] = ["agents", "calendar"];
 
 interface ShellProps {
   /** Null while the session is still being restored — the view renders from cache and mutations queue. */
@@ -41,9 +47,6 @@ interface ShellProps {
   onSheetReady: (kind: CollectionKind, id: string) => void;
   onSignOut: () => void;
 }
-
-/** Which settings drawer is open — each account-menu entry opens its own. */
-type SettingsSection = "agents" | "calendar";
 
 /** Chooses the view for the active kind. Empty (no sheet) → inline setup; otherwise the board, notes, or memories view. */
 export function Shell(props: ShellProps) {
@@ -92,7 +95,13 @@ function EmptyShell({
       )}
 
       {settingsOpen && (
-        <SettingsPanel section={settingsOpen} onClose={() => setSettingsOpen(null)} calendarMirror={null} />
+        <SettingsPanel
+          section={settingsOpen}
+          sections={NON_BOARD_SECTIONS}
+          onClose={() => setSettingsOpen(null)}
+          calendarMirror={null}
+          columnsEditor={null}
+        />
       )}
     </div>
   );
@@ -109,6 +118,10 @@ function BoardShell({
   onSelectKind,
   onSignOut,
 }: ShellProps) {
+  const { columns, saveColumns, saveError: columnsSaveError } = useColumns(token, spreadsheetId);
+  const columnOrder = useMemo(() => columnIds(columns), [columns]);
+  const doneStatus = doneColumnId(columns);
+  const blockedStatus = blockedColumnId(columns);
   const {
     state,
     lastSyncedAt,
@@ -119,7 +132,7 @@ function BoardShell({
     updateTask,
     moveTask,
     deleteTask,
-  } = useBoard(token, spreadsheetId);
+  } = useBoard(token, spreadsheetId, columnOrder, doneStatus ?? "done");
   const [settingsOpen, setSettingsOpen] = useState<SettingsSection | null>(null);
   useBackClose(settingsOpen !== null, () => setSettingsOpen(null));
   const [mirrorEnabled, setMirrorEnabled] = useState(getCalendarMirrorEnabled);
@@ -131,6 +144,7 @@ function BoardShell({
     token,
     boardId: spreadsheetId,
     tasks: state.status === "ready" ? state.tasks : null,
+    doneStatus,
     active: mirrorEnabled && hasTasksScope && calendarMirrorAvailable,
   });
 
@@ -180,23 +194,30 @@ function BoardShell({
 
       <Board
         tasks={tasks}
+        columns={columns}
+        doneStatus={doneStatus}
         token={token}
         readOnly={readOnly}
-        // A task created already waiting on something starts in Blocked, not
-        // the column whose composer happened to be open.
-        onAdd={(status, input) => void addTask({ ...input, status: input.blockedUntil ? "blocked" : status })}
+        // A task created already waiting on something starts in the Blocked
+        // column (if the board has one), not the column whose composer happened
+        // to be open.
+        onAdd={(status, input) =>
+          void addTask({ ...input, status: input.blockedUntil && blockedStatus ? blockedStatus : status })
+        }
         onMove={(id, status, dropIndex) => void moveTask(id, status, dropIndex)}
         onEdit={(id, patch) => {
           void updateTask(id, patch);
-          // The Blocked column tracks the schedule: gaining a blocked-until
-          // moves the task there; losing it (cleared, or swapped for a due
-          // date) releases it back to Backlog. Done tasks are left alone.
+          // The Blocked column (if designated) tracks the schedule: gaining a
+          // blocked-until moves the task there; losing it (cleared, or swapped
+          // for a due date) releases it to the first column. Done tasks are
+          // left alone. With no Blocked column, nothing auto-moves.
+          if (!blockedStatus) return;
           const current = tasks.find((t) => t.id === id);
-          if (!current || current.status === "done") return;
-          if (patch.blockedUntil && current.status !== "blocked") {
-            void moveTask(id, "blocked", 0);
-          } else if (patch.blockedUntil === "" && current.status === "blocked") {
-            void moveTask(id, "backlog", 0);
+          if (!current || (doneStatus && current.status === doneStatus)) return;
+          if (patch.blockedUntil && current.status !== blockedStatus) {
+            void moveTask(id, blockedStatus, 0);
+          } else if (patch.blockedUntil === "" && current.status === blockedStatus) {
+            void moveTask(id, columnOrder[0] ?? current.status, 0);
           }
         }}
         onDelete={(id) => void deleteTask(id)}
@@ -205,7 +226,9 @@ function BoardShell({
       {settingsOpen && (
         <SettingsPanel
           section={settingsOpen}
+          sections={BOARD_SECTIONS}
           onClose={() => setSettingsOpen(null)}
+          columnsEditor={{ columns, saveError: columnsSaveError, onSave: saveColumns }}
           calendarMirror={
             calendarMirrorAvailable
               ? {
@@ -304,10 +327,16 @@ function NotesShell({
         />
       )}
 
-      {/* The calendar mirror is a board concern (it mirrors due-dated tasks);
-          from the notes view the calendar drawer points back to the Todos tab. */}
+      {/* The calendar mirror and columns are board concerns; from the notes
+          view the calendar pane points back to the Todos tab. */}
       {settingsOpen && (
-        <SettingsPanel section={settingsOpen} onClose={() => setSettingsOpen(null)} calendarMirror={null} />
+        <SettingsPanel
+          section={settingsOpen}
+          sections={NON_BOARD_SECTIONS}
+          onClose={() => setSettingsOpen(null)}
+          calendarMirror={null}
+          columnsEditor={null}
+        />
       )}
     </div>
   );
@@ -404,7 +433,13 @@ function MemoriesShell({
       )}
 
       {settingsOpen && (
-        <SettingsPanel section={settingsOpen} onClose={() => setSettingsOpen(null)} calendarMirror={null} />
+        <SettingsPanel
+          section={settingsOpen}
+          sections={NON_BOARD_SECTIONS}
+          onClose={() => setSettingsOpen(null)}
+          calendarMirror={null}
+          columnsEditor={null}
+        />
       )}
     </div>
   );

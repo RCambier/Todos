@@ -91,7 +91,14 @@ function loadLocal(boardId: string | null): LocalBoard {
  *   client-generated, so an `add` whose row already landed is skipped, and
  *   ops on remotely-deleted tasks are dropped.
  */
-export function useBoard(token: string | null, spreadsheetId: string | null): UseBoardResult {
+export function useBoard(
+  token: string | null,
+  spreadsheetId: string | null,
+  /** The board's column ids, left to right — drives projection grouping. */
+  columnOrder: readonly string[] = STATUSES,
+  /** Which column counts as "done" (the recurrence trigger). */
+  doneStatus: string = "done",
+): UseBoardResult {
   const [local, setLocal] = useState<LocalBoard>(() => loadLocal(spreadsheetId));
   const [malformed, setMalformed] = useState<SheetError | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -131,8 +138,11 @@ export function useBoard(token: string | null, spreadsheetId: string | null): Us
   }, [local]);
 
   const projection = useMemo(
-    () => (local.replica ? boardOrder(applyPending(local.replica.tasks, local.outbox), STATUSES) : null),
-    [local],
+    () =>
+      local.replica
+        ? boardOrder(applyPending(local.replica.tasks, local.outbox, doneStatus), columnOrder)
+        : null,
+    [local, columnOrder, doneStatus],
   );
   const projectionRef = useRef(projection);
   projectionRef.current = projection;

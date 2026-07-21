@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import type { BoardColumn } from "@memoria/sheet-core";
 import type { MirrorStatus } from "../calendar/useTasksMirror.js";
 import { buildClaudeCodeCliSnippet, buildConnectorUrl } from "../lib/mcpSnippet.js";
 import { AgentMark } from "./AgentMark.js";
+import { ColumnsSettings } from "./ColumnsSettings.js";
 
 /** The calendar-mirror control, present only where the auth backend can drive it (the board view). */
 interface CalendarMirror {
@@ -12,13 +14,33 @@ interface CalendarMirror {
   onToggle: () => void;
 }
 
-interface SettingsPanelProps {
-  /** Which drawer this is — each account-menu entry opens its own. */
-  section: "agents" | "calendar";
-  onClose: () => void;
-  /** Null on deployments/views without the mirror — the calendar drawer then points to the Todos view. */
-  calendarMirror: CalendarMirror | null;
+/** The board-columns editor's data, present only on the board view. */
+interface ColumnsEditor {
+  columns: BoardColumn[];
+  saveError: string | null;
+  onSave: (next: BoardColumn[]) => Promise<void>;
 }
+
+/** Which pane of the unified settings dialog is showing. */
+export type SettingsSection = "columns" | "agents" | "calendar";
+
+interface SettingsPanelProps {
+  /** The pane to open on. */
+  section: SettingsSection;
+  /** Which panes are available (the board view adds "columns"). */
+  sections: readonly SettingsSection[];
+  onClose: () => void;
+  /** Null on deployments/views without the mirror — the calendar pane then points to the Todos view. */
+  calendarMirror: CalendarMirror | null;
+  /** Null off the board view — the columns pane is board-only. */
+  columnsEditor: ColumnsEditor | null;
+}
+
+const SECTION_TITLE: Record<SettingsSection, string> = {
+  columns: "Board columns",
+  agents: "AI agents",
+  calendar: "Google Calendar",
+};
 
 /** Copies `value` to the clipboard, showing a transient "Copied" confirmation. */
 function CopyButton({ value }: { value: string }) {
@@ -43,12 +65,20 @@ function CopyButton({ value }: { value: string }) {
 }
 
 /**
- * A settings drawer. Two account-menu entries — "Connect with AI agents" and
- * "Sync with Google Calendar" — each open their own drawer showing exactly
- * one section; there are no tabs inside.
+ * The unified settings dialog. One overlay with a nav of the available panes —
+ * Board columns (board view only), AI agents, and Google Calendar — so
+ * settings are one consistent place instead of separate one-off drawers.
  */
-export function SettingsPanel({ section, onClose, calendarMirror }: SettingsPanelProps) {
-  const title = section === "agents" ? "Connect with AI agents" : "Sync with Google Calendar";
+export function SettingsPanel({
+  section,
+  sections,
+  onClose,
+  calendarMirror,
+  columnsEditor,
+}: SettingsPanelProps) {
+  const [active, setActive] = useState<SettingsSection>(
+    sections.includes(section) ? section : (sections[0] ?? "agents"),
+  );
 
   // Escape closes, like every other overlay in the app.
   useEffect(() => {
@@ -65,17 +95,39 @@ export function SettingsPanel({ section, onClose, calendarMirror }: SettingsPane
         className="settings-panel"
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="settings-head">
-          <h2 className="settings-title">{title}</h2>
+          <h2 className="settings-title">Settings</h2>
           <button className="close" aria-label="Close settings" onClick={onClose}>
             ×
           </button>
         </div>
 
-        {section === "agents" ? <AgentsSection /> : <CalendarSection mirror={calendarMirror} />}
+        <nav className="settings-nav" aria-label="Settings sections">
+          {sections.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={s === active ? "active" : ""}
+              aria-current={s === active ? "page" : undefined}
+              onClick={() => setActive(s)}
+            >
+              {SECTION_TITLE[s]}
+            </button>
+          ))}
+        </nav>
+
+        {active === "columns" && columnsEditor && (
+          <ColumnsSettings
+            columns={columnsEditor.columns}
+            saveError={columnsEditor.saveError}
+            onSave={columnsEditor.onSave}
+          />
+        )}
+        {active === "agents" && <AgentsSection />}
+        {active === "calendar" && <CalendarSection mirror={calendarMirror} />}
       </div>
     </div>
   );

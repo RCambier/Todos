@@ -1,5 +1,5 @@
-import { STATUSES, type Recurrence, type Status, type Task } from "@memoria/sheet-core";
-import { useEffect, useRef, useState } from "react";
+import { orderColumns, type BoardColumn, type Recurrence, type Status, type Task } from "@memoria/sheet-core";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   formatBlockedUntilLong,
   formatDueDateLong,
@@ -9,7 +9,7 @@ import {
   isOverdue,
 } from "../lib/dates.js";
 import { Linkify } from "../lib/linkify.js";
-import { STATUS_LABEL, STATUS_PILL_CLASS } from "../lib/statusMeta.js";
+import { statusLabel, statusStyle, type ColumnMeta } from "../lib/statusMeta.js";
 import { useAutoGrow } from "../lib/useAutoGrow.js";
 import { uploadTaskAttachment } from "../notes/attachments.js";
 import { AgentMark } from "./AgentMark.js";
@@ -35,6 +35,12 @@ type ScheduleKind = "none" | "due" | "blocked";
 
 interface TaskDetailProps {
   task: Task;
+  /** The board's columns (customizable) — the destinations for "Move to …". */
+  columns: BoardColumn[];
+  /** id → label/pill-color lookup for the board's columns. */
+  columnMeta: Map<string, ColumnMeta>;
+  /** The board's done-role column id, or null. */
+  doneStatus: string | null;
   token: string | null;
   initialMode: TaskDetailMode;
   readOnly: boolean;
@@ -54,6 +60,9 @@ interface TaskDetailProps {
  */
 export function TaskDetail({
   task,
+  columns,
+  columnMeta,
+  doneStatus,
   token,
   initialMode,
   readOnly,
@@ -159,9 +168,9 @@ export function TaskDetail({
         }}
       >
         <div className="detail-head">
-          <span className={`status-pill ${STATUS_PILL_CLASS[task.status]}`}>
+          <span className="status-pill" style={statusStyle(columnMeta, task.status) as CSSProperties}>
             <span className="sdot" />
-            {STATUS_LABEL[task.status]}
+            {statusLabel(columnMeta, task.status)}
           </span>
           <button className="detail-close" aria-label="Close" onClick={onClose}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -177,7 +186,7 @@ export function TaskDetail({
 
         <TitleField
           value={task.title}
-          done={task.status === "done"}
+          done={doneStatus !== null && task.status === doneStatus}
           readOnly={readOnly}
           autoFocus={initialMode === "edit"}
           onCommit={(title) => onSave({ title })}
@@ -247,7 +256,12 @@ export function TaskDetail({
               </span>
             )}
             <div className="flex-spacer" />
-            <MoveToButton current={task.status} onMoveTo={onMoveTo} />
+            <MoveToButton
+              current={task.status}
+              columns={columns}
+              columnMeta={columnMeta}
+              onMoveTo={onMoveTo}
+            />
           </div>
         )}
         {!readOnly && confirming && (
@@ -570,12 +584,22 @@ function ScheduleField({
 /**
  * "Move to…" — the dialog's one status control. Opens a small menu of every
  * column but the current one (hidden columns included: this is how a task
- * reaches Admin renewals without drag-and-drop). Same menu chrome as the
+ * reaches a hidden column without drag-and-drop). Same menu chrome as the
  * card's ⋯ menu.
  */
-function MoveToButton({ current, onMoveTo }: { current: Status; onMoveTo: (status: Status) => void }) {
+function MoveToButton({
+  current,
+  columns,
+  columnMeta,
+  onMoveTo,
+}: {
+  current: Status;
+  columns: BoardColumn[];
+  columnMeta: Map<string, ColumnMeta>;
+  onMoveTo: (status: Status) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const destinations = STATUSES.filter((s) => s !== current);
+  const destinations = orderColumns(columns).filter((c) => c.id !== current);
 
   return (
     <div className="move-to">
@@ -595,20 +619,20 @@ function MoveToButton({ current, onMoveTo }: { current: Status; onMoveTo: (statu
         <>
           <div className="menu-backdrop" onClick={() => setOpen(false)} />
           <div className="menu-pop move-to-pop" role="menu" aria-label="Move to column">
-            {destinations.map((status) => (
+            {destinations.map((column) => (
               <button
-                key={status}
+                key={column.id}
                 type="button"
                 role="menuitem"
                 className="menu-item"
                 onClick={() => {
                   setOpen(false);
-                  onMoveTo(status);
+                  onMoveTo(column.id);
                 }}
               >
-                <span className={`status-pill ${STATUS_PILL_CLASS[status]}`}>
+                <span className="status-pill" style={statusStyle(columnMeta, column.id) as CSSProperties}>
                   <span className="sdot" />
-                  {STATUS_LABEL[status]}
+                  {statusLabel(columnMeta, column.id)}
                 </span>
               </button>
             ))}

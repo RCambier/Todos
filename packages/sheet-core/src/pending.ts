@@ -40,7 +40,12 @@ export type PendingOp =
  * a poll caught up) is skipped too. The result is NOT board-ordered —
  * callers order it like any other task list.
  */
-export function applyPending(tasks: readonly Task[], ops: readonly PendingOp[]): Task[] {
+export function applyPending(
+  tasks: readonly Task[],
+  ops: readonly PendingOp[],
+  /** Which column counts as "done" (the recurrence trigger) for this board. */
+  doneStatus: string = "done",
+): Task[] {
   const result = tasks.map((t) => ({ ...t }));
   for (const op of ops) {
     switch (op.kind) {
@@ -66,7 +71,7 @@ export function applyPending(tasks: readonly Task[], ops: readonly PendingOp[]):
         if (!t) break;
         // Same recurrence rule as board.moveTask: completing a yearly task
         // re-dates it in place, so the projection matches the flushed write.
-        const { redated } = resolveMove(t, op.status, op.at.slice(0, 10));
+        const { redated } = resolveMove(t, op.status, op.at.slice(0, 10), doneStatus);
         if (redated) {
           Object.assign(t, mergeSchedule(t, redated));
         } else {

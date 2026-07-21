@@ -1,4 +1,4 @@
-import type { SheetStore } from "@memoria/sheet-core";
+import type { BoardColumn, SheetStore } from "@memoria/sheet-core";
 
 /** A board as the catalog sees it: identity plus enough metadata to pick one. */
 export interface BoardInfo {
@@ -19,6 +19,12 @@ export interface BoardCatalog {
   listBoards(): Promise<BoardInfo[]>;
   /** A store bound to one board. No existence check — the backend errors on first use if `id` is bogus. */
   openBoard(id: string): SheetStore;
+  /**
+   * A board's columns (from its `Columns` tab), in display order. Falls back
+   * to the legacy column set for a board that predates customization — the
+   * connector reads columns, never migrates them (the web app does that).
+   */
+  readColumns(id: string): Promise<BoardColumn[]>;
 }
 
 /** The account has no board at all. The message is written for the agent to relay. */
@@ -48,12 +54,26 @@ export class AmbiguousBoardError extends Error {
  * unambiguous, no board is `NoBoardError`, and several boards is
  * `AmbiguousBoardError` — never a silent guess.
  */
-export async function resolveBoard(catalog: BoardCatalog, boardId?: string): Promise<SheetStore> {
-  if (boardId) return catalog.openBoard(boardId);
+export async function resolveBoardId(catalog: BoardCatalog, boardId?: string): Promise<string> {
+  if (boardId) return boardId;
   const boards = await catalog.listBoards();
   if (boards.length === 0) throw new NoBoardError();
   if (boards.length > 1) throw new AmbiguousBoardError(boards);
-  return catalog.openBoard(boards[0]!.id);
+  return boards[0]!.id;
+}
+
+export async function resolveBoard(catalog: BoardCatalog, boardId?: string): Promise<SheetStore> {
+  return catalog.openBoard(await resolveBoardId(catalog, boardId));
+}
+
+/** Resolves a board and reads its columns in one step — for the tools that need both. */
+export async function resolveBoardWithColumns(
+  catalog: BoardCatalog,
+  boardId?: string,
+): Promise<{ store: SheetStore; columns: BoardColumn[] }> {
+  const id = await resolveBoardId(catalog, boardId);
+  const [store, columns] = [catalog.openBoard(id), await catalog.readColumns(id)];
+  return { store, columns };
 }
 
 /**

@@ -80,6 +80,8 @@ export function planMirror(
   boardId: string,
   tasks: readonly Task[],
   googleTasks: readonly GTaskLite[],
+  /** The board's done-role column id (or null) — tasks there mirror as completed. */
+  doneStatus: string | null = "done",
 ): MirrorOp[] {
   const ops: MirrorOp[] = [];
 
@@ -100,7 +102,7 @@ export function planMirror(
 
   for (const task of candidates) {
     const mirror = mirrorByTaskId.get(task.id);
-    const status = task.status === "done" ? "completed" : "needsAction";
+    const status = doneStatus !== null && task.status === doneStatus ? "completed" : "needsAction";
 
     if (!mirror) {
       if (status === "completed") continue; // never create a mirror just to cross it off

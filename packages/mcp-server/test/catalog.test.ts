@@ -14,7 +14,7 @@ import {
   type MemoriesCatalog,
   type NotesCatalog,
 } from "../src/catalog.js";
-import type { SheetStore } from "@memoria/sheet-core";
+import { LEGACY_COLUMNS, type SheetStore } from "@memoria/sheet-core";
 
 function fakeStore(id: string): SheetStore {
   return {
@@ -41,6 +41,9 @@ function fakeCatalog(boards: BoardInfo[]): BoardCatalog & { opened: string[]; li
     openBoard(id: string) {
       this.opened.push(id);
       return fakeStore(id);
+    },
+    async readColumns() {
+      return [...LEGACY_COLUMNS];
     },
   };
 }

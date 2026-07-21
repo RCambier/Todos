@@ -1,8 +1,17 @@
 /**
- * A task's column in the board. Order here is display order, left to right.
- * The last two are the *hidden* columns (long-horizon buckets like document
- * renewals) — clients may fold them away by default; the data model treats
- * every status the same.
+ * A task's column, identified by its column *id*. Columns are customizable
+ * per board and stored in the sheet's `Columns` tab (see `columns.ts`), so a
+ * status is any non-empty column id — not a fixed enum. Tasks whose status
+ * points at a column that no longer exists are still valid data (the board
+ * folds them into a fallback column); the model never rejects them.
+ */
+export type Status = string;
+
+/**
+ * The column ids every board historically shipped with, in display order.
+ * No longer the definition of "a valid status" — it's the fallback ordering
+ * used when a board's column config isn't available, and the id set of
+ * `LEGACY_COLUMNS` (the migration target for pre-customization boards).
  */
 export const STATUSES = [
   "backlog",
@@ -13,10 +22,9 @@ export const STATUSES = [
   "health_checks",
 ] as const;
 
-export type Status = (typeof STATUSES)[number];
-
+/** A status is valid as long as it's a non-empty string — any column id qualifies. */
 export function isStatus(value: unknown): value is Status {
-  return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
+  return typeof value === "string" && value.trim() !== "";
 }
 
 /** How a task repeats. Completing a "yearly" task re-dates it instead of finishing it. */

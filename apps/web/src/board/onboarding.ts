@@ -1,4 +1,11 @@
-import { isBlankRow, parseMemoriesSheet, parseNotesSheet, parseSheet } from "@memoria/sheet-core";
+import {
+  DEFAULT_NEW_COLUMNS,
+  isBlankRow,
+  parseMemoriesSheet,
+  parseNotesSheet,
+  parseSheet,
+} from "@memoria/sheet-core";
+import { writeColumnsTab } from "../api/columnsSheet.js";
 import { moveToFolder, tagAsBoard, tagAsMemories, tagAsNotes, type CollectionKind } from "../api/drive.js";
 import { ensureMemoriaFolders, folderForKind, markOrganized } from "../api/folders.js";
 import {
@@ -37,6 +44,15 @@ export async function createCollection(token: string, title: string, kind: Colle
   const spreadsheetId = await createSpreadsheet(token, title, tab);
   await writeHeaderRow(token, spreadsheetId, tab);
   await tagForKind(token, spreadsheetId, kind);
+  // A brand-new board starts with the default three columns (Backlog / In
+  // progress / Done). Best-effort: a failure just defers to migration-on-load.
+  if (kind === "board") {
+    try {
+      await writeColumnsTab(token, spreadsheetId, DEFAULT_NEW_COLUMNS);
+    } catch {
+      // Left without a Columns tab; useColumns migrates it on first load.
+    }
+  }
   try {
     const folders = await ensureMemoriaFolders(token);
     await moveToFolder(token, spreadsheetId, folderForKind(folders, kind));
@@ -48,6 +64,20 @@ export async function createCollection(token: string, title: string, kind: Colle
 }
 
 type AttachOutcome = { kind: "attached" } | { kind: "bootstrapped" } | { kind: "refused"; reason: string };
+
+/** Writes the default columns when a freshly bootstrapped sheet becomes a board. Best-effort. */
+async function bootstrapBoardColumns(
+  token: string,
+  spreadsheetId: string,
+  kind: CollectionKind,
+): Promise<void> {
+  if (kind !== "board") return;
+  try {
+    await writeColumnsTab(token, spreadsheetId, DEFAULT_NEW_COLUMNS);
+  } catch {
+    // Left without a Columns tab; useColumns migrates it on first load.
+  }
+}
 
 /**
  * Handles the "link an existing sheet" path (Picker result), for either
@@ -87,6 +117,7 @@ export async function attachOrBootstrap(
     await renameTab(token, spreadsheetId, only.sheetId, tab.name);
     await writeHeaderRow(token, spreadsheetId, tab);
     await tagForKind(token, spreadsheetId, kind);
+    await bootstrapBoardColumns(token, spreadsheetId, kind);
     markOrganized(spreadsheetId); // user-picked: leave it where they keep it
     return { kind: "bootstrapped" };
   }
@@ -95,6 +126,7 @@ export async function attachOrBootstrap(
   if (rawRows.length === 0 || rawRows.every(isBlankRow)) {
     await writeHeaderRow(token, spreadsheetId, tab);
     await tagForKind(token, spreadsheetId, kind);
+    await bootstrapBoardColumns(token, spreadsheetId, kind);
     markOrganized(spreadsheetId);
     return { kind: "bootstrapped" };
   }

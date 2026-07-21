@@ -1,4 +1,6 @@
 import type { BoardInfo, MemoriaCatalog, SheetStore } from "@memoria/mcp-server";
+import { type BoardColumn, LEGACY_COLUMNS } from "@memoria/sheet-core";
+import { readColumnsTab } from "../../src/api/columnsSheet.js";
 import { findCollections, type Collection, type CollectionKind } from "../../src/api/drive.js";
 import { MEMORIES_TAB, NOTES_TAB } from "../../src/api/sheets.js";
 import { HttpSheetStore } from "../../src/api/sheetStore.js";
@@ -40,6 +42,17 @@ export class RemoteCatalog implements MemoriaCatalog {
 
   openBoard(id: string): SheetStore {
     return new HttpSheetStore(this.token, id);
+  }
+
+  /**
+   * A board's columns, read straight from its `Columns` tab. A board that
+   * predates customizable columns (no tab, or a header-only tab) reports the
+   * legacy set — the connector reads columns but never migrates them; the
+   * web app persists the migration when the user next opens the board.
+   */
+  async readColumns(id: string): Promise<BoardColumn[]> {
+    const columns = await readColumnsTab(this.token, id);
+    return columns && columns.length > 0 ? columns : [...LEGACY_COLUMNS];
   }
 
   openNotes(id: string): SheetStore {

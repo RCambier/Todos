@@ -1,7 +1,7 @@
 import { Droppable } from "@hello-pangea/dnd";
 import type { Status, Task } from "@memoria/sheet-core";
-import { useState } from "react";
-import { STATUS_LABEL, STATUS_PILL_CLASS } from "../lib/statusMeta.js";
+import { useState, type CSSProperties } from "react";
+import type { PillStyle } from "../lib/statusMeta.js";
 import { useIsMobile } from "../lib/useIsMobile.js";
 import { Card } from "./Card.js";
 import { Composer, type NewTaskInput } from "./Composer.js";
@@ -16,7 +16,15 @@ const COLLAPSE_AT = 20;
 
 interface ColumnProps {
   status: Status;
+  /** This column's display label. */
+  label: string;
+  /** Inline pill colors for this column's header. */
+  pillStyle?: PillStyle;
   tasks: Task[];
+  /** The board's done-role column id (or null) — cards here render struck through. */
+  doneStatus: string | null;
+  /** Label of the done column, for cards' "Move to …" action. */
+  doneLabel: string;
   token: string | null;
   readOnly: boolean;
   /** Attaches the mobile pager's panel ref to this column's root element. */
@@ -28,13 +36,17 @@ interface ColumnProps {
   onAdd: (input: NewTaskInput) => void;
   /** Opens the task detail dialog for a card in this column. */
   onOpen: (id: string, mode: TaskDetailMode) => void;
-  /** Marks a card done (moves it to the top of the Done column). */
-  onComplete: (id: string) => void;
+  /** Marks a card done (moves it to the done column). Absent when the board has no done column. */
+  onComplete?: (id: string) => void;
 }
 
 export function Column({
   status,
+  label,
+  pillStyle,
   tasks,
+  doneStatus,
+  doneLabel,
   token,
   readOnly,
   panelRef,
@@ -56,13 +68,13 @@ export function Column({
       {/* Hidden on mobile — the seg-switcher pills already name the columns,
           and the floating + (Board) replaces the per-column add. */}
       <div className="col-head">
-        <span className={`status-pill ${STATUS_PILL_CLASS[status]}`}>
+        <span className="status-pill" style={pillStyle as CSSProperties | undefined}>
           <span className="sdot" />
-          {STATUS_LABEL[status]}
+          {label}
         </span>
         <span className="count">{tasks.length}</span>
         {!readOnly && (
-          <button className="add" aria-label={`Add task to ${STATUS_LABEL[status]}`} onClick={onOpenComposer}>
+          <button className="add" aria-label={`Add task to ${label}`} onClick={onOpenComposer}>
             +
           </button>
         )}
@@ -86,8 +98,10 @@ export function Column({
                 task={task}
                 index={index}
                 readOnly={readOnly}
+                isDone={doneStatus !== null && task.status === doneStatus}
+                doneLabel={doneLabel}
                 onOpen={(mode) => onOpen(task.id, mode)}
-                onComplete={() => onComplete(task.id)}
+                onComplete={onComplete ? () => onComplete(task.id) : undefined}
               />
             ))}
             {provided.placeholder}
