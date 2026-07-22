@@ -30,8 +30,18 @@ export function formatDueDateLong(dueDate: string): string {
 
 /** Today as a local-calendar `YYYY-MM-DD` — the day boundary for due dates and memory expiry. */
 export function localToday(): string {
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return toLocalISO(new Date());
+}
+
+/** Tomorrow as a local-calendar `YYYY-MM-DD` — the default when a due date first appears. */
+export function localTomorrow(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return toLocalISO(d);
+}
+
+function toLocalISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** A due date is overdue once the local calendar day has passed — unless the task is done. */

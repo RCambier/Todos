@@ -140,12 +140,20 @@ export function Board({
   }, [shownColumns, activeMobileStatus, defaultMobileStatus]);
 
   // Land on the default panel by default (no animation — this is the initial
-  // position, not a navigation). useLayoutEffect so it happens before paint.
+  // position, not a navigation). On first load the columns arrive async, so a
+  // one-shot on mount can fire before any panel exists — leaving the first
+  // column showing under an active second pill. Instead this runs every
+  // render until the default panel is there. useLayoutEffect so the jump
+  // happens before paint.
+  const pagerPositioned = useRef(false);
   useLayoutEffect(() => {
+    if (pagerPositioned.current) return;
     const board = boardRef.current;
     const panel = panelRefs.current[defaultMobileStatus];
-    if (board && panel) board.scrollLeft = panel.offsetLeft - 20;
-  }, []);
+    if (!board || !panel) return;
+    board.scrollLeft = panel.offsetLeft - 20;
+    pagerPositioned.current = true;
+  });
 
   // Swiping between panels updates which pill reads as active. Panels are
   // equal-width snap points (85% of the container, so the next column peeks

@@ -7,6 +7,7 @@ import {
   isBlockLifted,
   isDateOnly,
   isOverdue,
+  localTomorrow,
 } from "../lib/dates.js";
 import { Linkify } from "../lib/linkify.js";
 import { statusLabel, statusStyle, type ColumnMeta } from "../lib/statusMeta.js";
@@ -495,8 +496,12 @@ function ScheduleField({
             onBlur={() => (focused.current = false)}
             onChange={(e) => {
               const nextKind = e.target.value as ScheduleKind;
+              // An empty date input renders invisible on iOS — picking "Due"
+              // starts from tomorrow instead of a blank.
+              const nextDue = nextKind === "due" && dueDate === "" ? localTomorrow() : dueDate;
               setKind(nextKind);
-              commit({ kind: nextKind, dueDate, blockedDate, blockedEvent });
+              setDueDate(nextDue);
+              commit({ kind: nextKind, dueDate: nextDue, blockedDate, blockedEvent });
             }}
           >
             <option value="none">No date</option>

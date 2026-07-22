@@ -4,6 +4,8 @@ import { formatDueDateLong, formatFullDate, localToday } from "../lib/dates.js";
 import { MAX_CELL_CHARS } from "@memoria/sheet-core";
 import { useTagColors } from "../lib/tagColor.js";
 import { isAttachableImage, uploadNoteAttachment } from "../notes/attachments.js";
+import { useIsMobile } from "../lib/useIsMobile.js";
+import { useVisualViewportHeight } from "../lib/useVisualViewportHeight.js";
 import { AgentMark } from "./AgentMark.js";
 import { Markdown } from "./Markdown.js";
 import { PaperclipIcon } from "./PaperclipIcon.js";
@@ -70,6 +72,12 @@ export function NoteEditor({
   const [uploads, setUploads] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  // On phones the on-screen keyboard covers the bottom of the full-bleed
+  // panel (the layout viewport never shrinks) — while editing, size the
+  // panel to the visual viewport so the action bar rides above the keyboard.
+  const isMobile = useIsMobile();
+  const panelHeight = useVisualViewportHeight(isMobile && mode === "edit");
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -238,13 +246,14 @@ export function NoteEditor({
 
   return (
     <div
-      className="detail-overlay"
+      className="detail-overlay note-overlay"
       onClick={() => {
         if (mode !== "edit") handleClose();
       }}
     >
       <div
         className={`detail-panel note-panel${agent ? " agent" : ""}${dragOver ? " drag-over" : ""}`}
+        style={isMobile && panelHeight !== null ? { height: panelHeight } : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={note.title || capNoun}

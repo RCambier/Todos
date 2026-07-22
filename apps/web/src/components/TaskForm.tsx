@@ -1,6 +1,6 @@
 import { MAX_CELL_CHARS } from "@memoria/sheet-core";
 import { useEffect, useRef, useState } from "react";
-import { isDateOnly } from "../lib/dates.js";
+import { isDateOnly, localTomorrow } from "../lib/dates.js";
 import { uploadTaskAttachment } from "../notes/attachments.js";
 import { TagsEditor } from "./TagsEditor.js";
 
@@ -160,7 +160,13 @@ export function TaskForm({ initial, token, submitLabel, onSubmit, onCancel }: Ta
           className="composer-schedule"
           aria-label="Schedule"
           value={scheduleKind}
-          onChange={(e) => setScheduleKind(e.target.value as ScheduleKind)}
+          onChange={(e) => {
+            const nextKind = e.target.value as ScheduleKind;
+            setScheduleKind(nextKind);
+            // An empty date input renders invisible on iOS — picking "Due"
+            // starts from tomorrow instead of a blank.
+            if (nextKind === "due" && dueDate === "") setDueDate(localTomorrow());
+          }}
         >
           <option value="none">No date</option>
           <option value="due">Due</option>

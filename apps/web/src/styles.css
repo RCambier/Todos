@@ -2202,11 +2202,18 @@ kbd {
     place-items: center;
   }
 
+  /* Stacked so the pager can grow: pills / board / dots. The board takes all
+     the leftover height — with one or two cards the whole screen still swipes
+     between columns, and the dots sit at the bottom instead of hugging the
+     last card mid-screen. */
   .board-scroll {
     overflow-x: visible;
+    display: flex;
+    flex-direction: column;
   }
   .board {
     display: flex;
+    flex: 1;
     gap: 0;
     min-width: 0;
     padding: 0;
@@ -2362,10 +2369,21 @@ kbd {
     width: 36px;
     height: 36px;
   }
+  /* Every focusable field is at least 16px — under that, iOS Safari zooms
+     the page in on focus (the viewport meta blocks it too, but 16px also
+     just reads better on a phone). Covers the task detail's schedule/date/
+     "blocked by" fields, the tags editor everywhere, and note expiry. */
   .composer input,
   .composer textarea,
+  .composer select,
   .settings-panel input[type="text"],
-  .settings-panel input[type="email"] {
+  .settings-panel input[type="email"],
+  .detail-schedule-select,
+  .detail-due-input,
+  .detail-blocked-event,
+  .detail-notes-input,
+  .composer-tags .tag-input,
+  .note-expiry-field input[type="date"] {
     font-size: 16px;
   }
   /* The in-column composer becomes a full-screen capture surface on mobile
@@ -3033,11 +3051,25 @@ kbd {
   .notes-toolbar {
     gap: 8px;
   }
-  /* The open note goes full-bleed (design 5b-2), not a bottom sheet. */
+  /* The open note goes full-bleed (design 5b-2), not a bottom sheet. The
+     overlay hugs the top so that when the editor shrinks the panel to the
+     visual viewport (keyboard up), the footer lands on top of the keyboard
+     instead of staying hidden behind it at the layout-viewport bottom. */
+  .note-overlay {
+    align-items: flex-start;
+  }
   .note-panel {
     max-height: 100dvh;
     height: 100dvh;
     border-radius: 0;
+  }
+  /* With the keyboard up there may be little room — the edit stack scrolls
+     and the body input gives up its roomy minimum so the footer stays put. */
+  .note-panel .note-edit {
+    overflow-y: auto;
+  }
+  .note-body-input {
+    min-height: 120px;
   }
   .note-panel .detail-head {
     padding-top: calc(16px + env(safe-area-inset-top));
