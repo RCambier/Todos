@@ -83,11 +83,12 @@ export function Board({
   const meta = useMemo(() => buildColumnMeta(columns), [columns]);
   const { visible, hidden } = useMemo(() => deriveColumns(columns, tasks), [columns, tasks]);
 
-  // The panel shown by default on mobile: the second visible column (day-to-day
-  // work) when there is one, else the first.
-  const defaultMobileStatus = visible[Math.min(1, visible.length - 1)]?.id ?? visible[0]?.id ?? "";
-
-  const [activeMobileStatus, setActiveMobileStatus] = useState<Status>(defaultMobileStatus);
+  // The mobile pager's single source of truth: the index of the panel the
+  // pager is on. The active pill, the dots, and the add-FAB all render from
+  // it, and it is only ever set from a measurement of the pager's real
+  // scroll position (measurePagerIndex) — so the highlighted pill can never
+  // disagree with the column actually on screen.
+  const [activeIndex, setActiveIndex] = useState(0);
   // While a card is mid-drag the pager's scroll snapping is suspended so the
   // library's edge auto-scroll can carry the card to a neighboring column.
   const [cardDragging, setCardDragging] = useState(false);
@@ -132,52 +133,72 @@ export function Board({
   // If the open task vanishes (deleted elsewhere, board switch), the dialog goes with it.
   const detailTask = detail ? tasks.find((t) => t.id === detail.taskId) : undefined;
 
-  // If the active mobile column disappears (e.g. deleted in settings), fall back.
-  useEffect(() => {
-    if (!shownColumns.some((c) => c.id === activeMobileStatus) && defaultMobileStatus) {
-      setActiveMobileStatus(defaultMobileStatus);
-    }
-  }, [shownColumns, activeMobileStatus, defaultMobileStatus]);
+  // A stale index (columns removed, hidden set folded away) clamps at render;
+  // the browser clamps the pager's scroll the same way and the resulting
+  // scroll event re-measures, so both stay on the last panel together.
+  const clampedIndex = Math.min(activeIndex, Math.max(0, shownColumns.length - 1));
+  const activeStatus: Status = shownColumns[clampedIndex]?.id ?? "";
 
-  // Land on the default panel by default (no animation — this is the initial
-  // position, not a navigation). On first load the columns arrive async, so a
-  // one-shot on mount can fire before any panel exists — leaving the first
-  // column showing under an active second pill. Instead this runs every
-  // render until the default panel is there. useLayoutEffect so the jump
-  // happens before paint.
+  /**
+   * The panel the pager is actually on: the one whose snap position
+   * (offsetLeft minus the 20px scroll-padding) is nearest the current
+   * scrollLeft. Measured from the real DOM instead of re-deriving the CSS
+   * geometry, so it stays correct if the layout changes.
+   */
+  function measurePagerIndex(board: HTMLDivElement): number {
+    let best = 0;
+    let bestDistance = Infinity;
+    shownColumns.forEach((col, index) => {
+      const panel = panelRefs.current[col.id];
+      if (!panel) return;
+      const distance = Math.abs(panel.offsetLeft - 20 - board.scrollLeft);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    return best;
+  }
+
+  // Land on the default panel — the second visible column (day-to-day work)
+  // when there is one — with no animation: this is the initial position, not
+  // a navigation. On first load the columns arrive async, so this runs every
+  // render until the pager is actually scrollable (panels present and laid
+  // out), then positions once and adopts the measured result. useLayoutEffect
+  // so the jump happens before paint.
   const pagerPositioned = useRef(false);
   useLayoutEffect(() => {
     if (pagerPositioned.current) return;
     const board = boardRef.current;
-    const panel = panelRefs.current[defaultMobileStatus];
+    const target = visible[Math.min(1, visible.length - 1)];
+    const panel = target ? panelRefs.current[target.id] : undefined;
     if (!board || !panel) return;
+    // Desktop (where .board isn't the scroll container) or a single panel:
+    // nothing to position, and index 0 is already the measured truth.
+    if (board.scrollWidth <= board.clientWidth) return;
     board.scrollLeft = panel.offsetLeft - 20;
     pagerPositioned.current = true;
+    setActiveIndex(measurePagerIndex(board));
   });
 
-  // Swiping between panels updates which pill reads as active. Panels are
-  // equal-width snap points (85% of the container, so the next column peeks
-  // at the edge — design 2a), so the visible one is the nearest multiple of
-  // that page width.
+  // Swiping (or any scroll, programmatic or not) re-measures which panel is
+  // on screen — the only other writer of activeIndex.
   useEffect(() => {
     const board = boardRef.current;
     if (!board) return;
     function onScroll(): void {
       const current = boardRef.current;
       if (!current) return;
-      const page = current.clientWidth * 0.85 || 1;
-      const index = Math.round(current.scrollLeft / page);
-      const clamped = Math.min(shownColumns.length - 1, Math.max(0, index));
-      setActiveMobileStatus(shownColumns[clamped]?.id ?? defaultMobileStatus);
+      setActiveIndex(measurePagerIndex(current));
     }
     board.addEventListener("scroll", onScroll, { passive: true });
     return () => board.removeEventListener("scroll", onScroll);
-  }, [shownColumns, defaultMobileStatus]);
+  }, [shownColumns]);
 
-  function goToPanel(status: Status): void {
-    setActiveMobileStatus(status);
+  function goToPanel(index: number): void {
+    setActiveIndex(index);
     const board = boardRef.current;
-    const panel = panelRefs.current[status];
+    const panel = panelRefs.current[shownColumns[index]?.id ?? ""];
     if (board && panel) board.scrollTo({ left: panel.offsetLeft - 20, behavior: "smooth" });
   }
 
@@ -186,10 +207,7 @@ export function Board({
     const board = boardRef.current;
     // Desktop: the .board element isn't the scroll container, so nothing to settle.
     if (!board || board.scrollWidth <= board.clientWidth) return;
-    const page = board.clientWidth * 0.85 || 1;
-    const index = Math.min(shownColumns.length - 1, Math.max(0, Math.round(board.scrollLeft / page)));
-    const status = shownColumns[index]?.id;
-    if (status) goToPanel(status);
+    goToPanel(measurePagerIndex(board));
   }
 
   function handleDragStart(): void {
@@ -207,17 +225,17 @@ export function Board({
     onMove(draggableId, destination.droppableId as Status, destination.index);
   }
 
-  const activeLabel = statusLabel(meta, activeMobileStatus);
+  const activeLabel = statusLabel(meta, activeStatus);
 
   return (
     <div className="board-scroll">
       <div className="seg-switcher">
-        {shownColumns.map((col) => (
+        {shownColumns.map((col, index) => (
           <button
             key={col.id}
             type="button"
-            className={col.id === activeMobileStatus ? "active" : ""}
-            onClick={() => goToPanel(col.id)}
+            className={index === clampedIndex ? "active" : ""}
+            onClick={() => goToPanel(index)}
           >
             {statusLabel(meta, col.id)} {tasksIn(col.id).length}
           </button>
@@ -277,15 +295,15 @@ export function Board({
         </div>
       </DragDropContext>
       <div className="pager-dots" aria-hidden="true">
-        {shownColumns.map((col) => (
-          <span key={col.id} className={col.id === activeMobileStatus ? "dot active" : "dot"} />
+        {shownColumns.map((col, index) => (
+          <span key={col.id} className={index === clampedIndex ? "dot active" : "dot"} />
         ))}
       </div>
       {/* Mobile-only "+" — adds a todo to the column currently on screen. */}
-      {!readOnly && activeMobileStatus && (
+      {!readOnly && activeStatus && (
         <AddFab
           label={`Add a todo to ${activeLabel}`}
-          onClick={() => setComposerStatus(activeMobileStatus)}
+          onClick={() => setComposerStatus(activeStatus)}
         />
       )}
       {composerStatus !== null &&
